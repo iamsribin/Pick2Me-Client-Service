@@ -11,7 +11,7 @@ import { Input } from "@/shared/components/ui/input";
 import { PhoneCall } from "lucide-react";
 import { updateRideStatus,setPaymentStatus } from "@/shared/services/redux/slices/driverRideSlice";
 import { toast } from "sonner";
-import { RideRequest } from "@/shared/types/driver/ridetype";
+import { RideRequest } from "@/shared/types/driver/ride-type";
 import { useDriverLocation } from "@/context/driver-location-context";
 import { Toast } from "@chakra-ui/react";
 import { getDistanceInMeters } from "@/shared/utils/getDistanceInMeters";

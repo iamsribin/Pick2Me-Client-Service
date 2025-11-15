@@ -14,12 +14,12 @@ import {
   fetchData,
   patchData,
 } from "@/shared/services/api/api-service";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { AdminApiEndpoints } from "@/constants/admin-api-end-pointes";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
 import { AdminDriverDetailsDTO } from "../../type";
-import { AccountStatus } from "@/shared/types/driver/driverType";
+import { AccountStatus } from "@/shared/types/driver/driver-type";
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
 
 const PendingDriverDetails = () => {

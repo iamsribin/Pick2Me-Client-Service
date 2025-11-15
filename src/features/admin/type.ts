@@ -1,4 +1,4 @@
-import { DriverInterface } from "@/shared/types/driver/driverType";
+import { DriverInterface } from "@/shared/types/driver/driver-type";
 
 // Add this to your existing type.ts file
 
@@ -46,7 +46,7 @@ export type {DriverDetailsTabProps,
 
 
 
-import { AccountStatus } from "@/shared/types/driver/driverType";
+import { AccountStatus } from "@/shared/types/driver/driver-type";
 
 export interface Res_getDriversListByAccountStatus {
     id: string;

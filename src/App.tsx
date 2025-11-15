@@ -9,14 +9,19 @@ import AdminRoutes from "@/features/admin/routes/admin-routes";
 import NotFound from "@/shared/components/NotFound";
 import NotificationModal from "@/shared/components/NotificationModal";
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
+import useSocket from "./shared/hooks/useSocket";
+import { useMemo } from "react";
+import { Role } from "./shared/types/common";
+
 
 function App() {
-
+  const roles: Role[] = useMemo(() => ["User", "Driver"], []);
+  useSocket(roles);
   return (
     <ChakraProvider>
       <TooltipProvider>
         <Toaster />
-        <NotificationModal />
+        {/* <NotificationModal /> */}
         <GlobalLoading />
         <Routes>
           <Route path="/*" element={<UserRoutes />} />

@@ -43,7 +43,7 @@ import { useNavigate } from "react-router-dom";
 import { DriverProfileData } from "./type";
 import { deleteData, fetchData, updateData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { StatusCode } from "@/shared/types/enum";
 import { store } from "@/shared/services/redux/store";
 import { handleCustomError } from "@/shared/utils/error";

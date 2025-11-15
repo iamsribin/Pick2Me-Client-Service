@@ -14,7 +14,7 @@ import { userLogin } from "@/shared/services/redux/slices/userSlice";
 import { useDispatch } from "react-redux";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 
 interface DriverLoginFormProps {
   auth: any;

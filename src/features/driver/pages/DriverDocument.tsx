@@ -18,7 +18,7 @@ import DriverNavbar from "../components/DriverNavbar";
 import { StatusCode } from "@/shared/types/enum";
 import { deleteData, fetchData, updateData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { handleCustomError } from "@/shared/utils/error";
 import { toast } from "@/shared/hooks/use-toast";
 import { store } from "@/shared/services/redux/store";

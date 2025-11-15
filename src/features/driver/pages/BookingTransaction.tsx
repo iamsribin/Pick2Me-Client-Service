@@ -26,7 +26,7 @@ import { Calendar } from "lucide-react";
 import { BookingListType } from "./type";
 import { fetchData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 
 const BookingList: React.FC = () => {
   const navigate = useNavigate();

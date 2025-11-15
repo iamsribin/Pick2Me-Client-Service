@@ -1,5 +1,5 @@
 import { store } from "@/shared/services/redux/store";
-import { Role } from "@/shared/types/commonTypes";
+import { Role } from "@/shared/types/common";
 import { Navigate, Outlet } from "react-router-dom";
 
 interface PropType {

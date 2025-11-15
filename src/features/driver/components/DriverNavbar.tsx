@@ -21,13 +21,12 @@ import { RootState } from "@/shared/services/redux/store";
 import { useSelector } from "react-redux";
 import { handleLogout } from "@/shared/utils/auth";
 
-
 const DriverNavbar = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isPulsing, setIsPulsing] = useState(true);
   const notificationRef = useRef<HTMLDivElement | null>(null);
 
-  const rideData = useSelector((state: RootState) => state.driverRideMap);
+  // const rideData = useSelector((state: RootState) => state.driverRideMap);
 
   const [notifications] = useState([
     {
@@ -80,16 +79,21 @@ const DriverNavbar = () => {
     },
   ]);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
   const displayNotifications = notifications.slice(0, 5);
   const hasMore = notifications.length > 5;
-  const isPaymentPending = rideData.paymentStatus === "pending" || rideData.paymentStatus === "failed";
+  const rideData = {
+    paymentStatus: "pending",
+    isOpen: false,
+  };
+  const isPaymentPending =
+    rideData.paymentStatus === "pending" || rideData.paymentStatus === "failed";
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (rideData) {
       interval = setInterval(() => {
-        setIsPulsing(prev => !prev);
+        setIsPulsing((prev) => !prev);
       }, 1000);
     }
     return () => {
@@ -98,10 +102,14 @@ const DriverNavbar = () => {
   }, [rideData]);
 
   useEffect(() => {
-    const handleClickOutside = (event:MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent) => {
       const targetNode = event.target as Node | null;
-  if (notificationRef.current && targetNode && !notificationRef.current.contains(targetNode)) {
-    setIsNotificationOpen(false);
+      if (
+        notificationRef.current &&
+        targetNode &&
+        !notificationRef.current.contains(targetNode)
+      ) {
+        setIsNotificationOpen(false);
       }
     };
 
@@ -136,7 +144,7 @@ const DriverNavbar = () => {
     setIsNotificationOpen(false);
   };
 
-  const getNotificationIcon = (type:string) => {
+  const getNotificationIcon = (type: string) => {
     switch (type) {
       case "success":
         return "bg-[#fdb726]/20 text-[#fdb726]";
@@ -147,7 +155,7 @@ const DriverNavbar = () => {
     }
   };
 
-  const linkStyles = (isActive:boolean) => `
+  const linkStyles = (isActive: boolean) => `
     flex items-center p-4 w-full rounded-xl transition-all duration-300 font-medium
     ${
       isActive
@@ -159,43 +167,43 @@ const DriverNavbar = () => {
   return (
     <>
       {/* Status Bar - Desktop View */}
-{(rideData.isOpen || isPaymentPending) && (
-  <div className="hidden sm:block fixed top-4 right-6 z-30">
-    {isPaymentPending ? (
-      <button
-        onClick={handlePaymentNavigation}
-        className="flex items-center space-x-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#fdb726] to-[#f5a623] hover:from-[#f5a623] hover:to-[#fdb726] font-bold text-sm transition-all duration-300 shadow-xl hover:scale-110 border-2 border-black/10"
-      >
-        <AlertCircle size={18} className="text-black" />
-        <span className="text-black">
-          {rideData?.paymentStatus === 'failed' ? 'Payment Failed' : 'Payment Pending'}
-        </span>
-      </button>
-    ) : (
-      <button
-        onClick={handleRideMapNavigation}
-        className={`flex items-center space-x-2 px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 border-2 ${
-          isPulsing
-            ? 'bg-[#fdb726] shadow-2xl shadow-[#fdb726]/50 scale-110 border-black/20'
-            : 'bg-[#f5a623] shadow-lg scale-100 border-black/10'
-        }`}
-      >
-        <Navigation size={18} className="text-black" />
-        <span className="text-black">Go to Ride Map</span>
-        <span
-          className={`w-3 h-3 rounded-full ml-1 ${
-            isPulsing ? 'bg-black shadow-lg' : 'bg-black/50'
-          } transition-all duration-300`}
-        />
-      </button>
-    )}
-  </div>
-)}
-
+      {(rideData.isOpen || isPaymentPending) && (
+        <div className="hidden sm:block fixed top-4 right-6 z-30">
+          {isPaymentPending ? (
+            <button
+              onClick={handlePaymentNavigation}
+              className="flex items-center space-x-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#fdb726] to-[#f5a623] hover:from-[#f5a623] hover:to-[#fdb726] font-bold text-sm transition-all duration-300 shadow-xl hover:scale-110 border-2 border-black/10"
+            >
+              <AlertCircle size={18} className="text-black" />
+              <span className="text-black">
+                {rideData?.paymentStatus === "failed"
+                  ? "Payment Failed"
+                  : "Payment Pending"}
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={handleRideMapNavigation}
+              className={`flex items-center space-x-2 px-6 py-3 rounded-full font-bold text-sm transition-all duration-300 border-2 ${
+                isPulsing
+                  ? "bg-[#fdb726] shadow-2xl shadow-[#fdb726]/50 scale-110 border-black/20"
+                  : "bg-[#f5a623] shadow-lg scale-100 border-black/10"
+              }`}
+            >
+              <Navigation size={18} className="text-black" />
+              <span className="text-black">Go to Ride Map</span>
+              <span
+                className={`w-3 h-3 rounded-full ml-1 ${
+                  isPulsing ? "bg-black shadow-lg" : "bg-black/50"
+                } transition-all duration-300`}
+              />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Main Sidebar */}
       <div className="fixed bottom-0 left-0 right-0 sm:right-auto sm:bottom-auto sm:top-0 sm:h-screen sm:w-64 bg-gradient-to-b from-[#f0d7a7] via-[#fff3d1] to-[#ffffff] shadow-2xl p-4 z-20 border-r-4 border-[#fdb726]">
-
         {/* Desktop Header with Notification */}
         <div className="hidden sm:flex justify-between items-center mb-6 pb-5 border-b-2 border-[#fdb726]/30">
           <h2 className="text-xl font-bold text-[#000000]">Driver Menu</h2>
@@ -216,7 +224,9 @@ const DriverNavbar = () => {
             {isNotificationOpen && (
               <div className="absolute left-0 top-full mt-2 w-96 bg-gradient-to-b from-[#ffffff] to-[#e8c58c]/20 rounded-2xl shadow-2xl border-2 border-[#fdb726]/30 overflow-hidden z-50">
                 <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-[#fdb726] to-[#f5a623] border-b-2 border-[#000000]/10">
-                  <h3 className="font-bold text-[#000000] text-base">Notifications</h3>
+                  <h3 className="font-bold text-[#000000] text-base">
+                    Notifications
+                  </h3>
                   <button
                     onClick={() => setIsNotificationOpen(false)}
                     className="p-1.5 hover:bg-[#000000]/10 rounded-full transition-colors"
@@ -232,11 +242,17 @@ const DriverNavbar = () => {
                         key={notification.id}
                         onClick={() => handleNotificationClick(notification.id)}
                         className={`px-5 py-4 border-b border-[#fdb726]/20 hover:bg-[#e8c58c]/30 cursor-pointer transition-all duration-200 ${
-                          !notification.isRead ? 'bg-[#fdb726]/10 hover:bg-[#fdb726]/20' : ''
+                          !notification.isRead
+                            ? "bg-[#fdb726]/10 hover:bg-[#fdb726]/20"
+                            : ""
                         }`}
                       >
                         <div className="flex items-start space-x-3">
-                          <div className={`p-2.5 rounded-lg ${getNotificationIcon(notification.type)} flex-shrink-0`}>
+                          <div
+                            className={`p-2.5 rounded-lg ${getNotificationIcon(
+                              notification.type
+                            )} flex-shrink-0`}
+                          >
                             <Bell className="h-4 w-4" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -364,23 +380,27 @@ const DriverNavbar = () => {
               >
                 <AlertCircle size={18} className="text-[#000000]" />
                 <span className="text-[#000000]">
-                  {rideData.paymentStatus === "failed" ? "Payment Failed" : "Payment Pending"}
+                  {rideData.paymentStatus === "failed"
+                    ? "Payment Failed"
+                    : "Payment Pending"}
                 </span>
               </button>
-            ):(
+            ) : (
               <button
                 onClick={handleRideMapNavigation}
                 className={`flex items-center justify-center space-x-2 px-4 py-3 rounded-full font-bold text-sm w-full transition-all duration-300 border-2 ${
-                  isPulsing 
-                    ? 'bg-[#fdb726] shadow-2xl shadow-[#fdb726]/50 scale-105 border-[#000000]/20' 
-                    : 'bg-[#f5a623] shadow-lg scale-100 border-[#000000]/10'
+                  isPulsing
+                    ? "bg-[#fdb726] shadow-2xl shadow-[#fdb726]/50 scale-105 border-[#000000]/20"
+                    : "bg-[#f5a623] shadow-lg scale-100 border-[#000000]/10"
                 }`}
               >
                 <Navigation size={18} className="text-[#000000]" />
                 <span className="text-[#000000]">Ride Map</span>
-                <span className={`w-2 h-2 rounded-full ${
-                  isPulsing ? 'bg-[#000000]' : 'bg-[#000000]/50'
-                } transition-colors duration-300`} />
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isPulsing ? "bg-[#000000]" : "bg-[#000000]/50"
+                  } transition-colors duration-300`}
+                />
               </button>
             )}
           </div>
@@ -389,13 +409,18 @@ const DriverNavbar = () => {
 
       {/* Mobile Notification Modal */}
       {isNotificationOpen && (
-        <div className="sm:hidden fixed inset-0 bg-[#000000]/70 z-40 backdrop-blur-sm" onClick={() => setIsNotificationOpen(false)}>
-          <div 
+        <div
+          className="sm:hidden fixed inset-0 bg-[#000000]/70 z-40 backdrop-blur-sm"
+          onClick={() => setIsNotificationOpen(false)}
+        >
+          <div
             className="fixed bottom-16 left-0 right-0 bg-gradient-to-b from-[#ffffff] to-[#e8c58c]/30 rounded-t-3xl shadow-2xl max-h-[80vh] overflow-hidden border-t-4 border-[#fdb726]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-[#fdb726] to-[#f5a623] border-b-2 border-[#000000]/10">
-              <h3 className="font-bold text-[#000000] text-base">Notifications</h3>
+              <h3 className="font-bold text-[#000000] text-base">
+                Notifications
+              </h3>
               <button
                 onClick={() => setIsNotificationOpen(false)}
                 className="p-1.5 hover:bg-[#000000]/10 rounded-full transition-colors"
@@ -411,11 +436,15 @@ const DriverNavbar = () => {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification.id)}
                     className={`px-5 py-4 border-b border-[#fdb726]/20 active:bg-[#e8c58c]/50 transition-colors ${
-                      !notification.isRead ? 'bg-[#fdb726]/10' : ''
+                      !notification.isRead ? "bg-[#fdb726]/10" : ""
                     }`}
                   >
                     <div className="flex items-start space-x-3">
-                      <div className={`p-2.5 rounded-lg ${getNotificationIcon(notification.type)} flex-shrink-0`}>
+                      <div
+                        className={`p-2.5 rounded-lg ${getNotificationIcon(
+                          notification.type
+                        )} flex-shrink-0`}
+                      >
                         <Bell className="h-4 w-4" />
                       </div>
                       <div className="flex-1 min-w-0">

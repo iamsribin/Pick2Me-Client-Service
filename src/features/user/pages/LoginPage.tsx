@@ -9,7 +9,7 @@ import { jwtDecode } from "jwt-decode";
 import { DecodedToken } from "../components/forms/type";
 import { UserAuthData } from "@/shared/types/user/userTypes";
 import { postData } from "@/shared/services/api/api-service";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { userLogin } from "@/shared/services/redux/slices/userSlice";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";

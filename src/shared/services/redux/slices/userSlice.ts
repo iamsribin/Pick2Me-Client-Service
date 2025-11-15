@@ -1,4 +1,4 @@
-import { Role } from "@/shared/types/commonTypes";
+import { Role } from "@/shared/types/common";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface UserState {

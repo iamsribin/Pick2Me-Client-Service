@@ -1,9 +1,9 @@
 import { CredentialResponse } from "@react-oauth/google";
 import { ConfirmationResult } from "firebase/auth";
-import { Previews, ResubmissionData, ResubmissionFormValues  } from "@/shared/types/commonTypes";
+import { Previews, ResubmissionData, ResubmissionFormValues  } from "@/shared/types/common";
 import { FormikProps } from "formik";
 import { StatusCode } from "@/shared/types/enum";
-import { DriverAuthData } from "@/shared/types/driver/driverType";
+import { DriverAuthData } from "@/shared/types/driver/driver-type";
 export interface Res_checkRegisterDriver{
   status: StatusCode;
   message: string;

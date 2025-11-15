@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { VehicleValidation } from "@/shared/utils/validation";
 import DriverInsurancePage from "./DriverInsurancePage";
 import { VehicleFormValues } from "./type";
-import { AdminAllowedVehicleModel } from "@/shared/types/commonTypes";
+import { AdminAllowedVehicleModel } from "@/shared/types/common";
 import { fetchData, postData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
 import { getItem, removeItem, setItem } from "@/shared/utils/localStorage";

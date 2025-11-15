@@ -22,7 +22,7 @@ import {
   postData,
   updateData,
 } from "@/shared/services/api/api-service";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { handleCustomError } from "@/shared/utils/error";
 import UserApiEndpoints from "@/constants/user-api-end-pointes";
 import { formatDate } from "@/shared/utils/format";

@@ -14,9 +14,9 @@ const DriverDashboard = () => {
   
   // const driverId = useSelector((state) => state.user.id);
   // const isOnline = useSelector((state) => state.user.isOnline);
-  const rideData = useSelector((state: RootState) => state.driverRideMap);
-  const isOpen = useSelector((state: RootState) => state.driverRideMap.isOpen);;
-
+  // const rideData = useSelector((state: RootState) => state.driverRideMap);
+  // const isOpen = useSelector((state: RootState) => state.driverRideMap.isOpen);;
+  const isOpen = false;
   const [online, setOnline] = React.useState(false);
 
   const handleOnlineChange = useCallback(async (checked:boolean) => {
@@ -39,7 +39,7 @@ const DriverDashboard = () => {
     } else {
       toast({description: "Geolocation is not supported by your browser", variant: "error"});
     }
-  }, [rideData]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#e8c58c] via-[#f5e5c8] to-[#ffffff] flex flex-col">

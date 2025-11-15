@@ -20,7 +20,7 @@ import { ArrowLeft } from "lucide-react";
 import { Booking } from "@/shared/types/ride/ride";
 import { fetchData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 

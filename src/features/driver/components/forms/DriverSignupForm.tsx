@@ -16,7 +16,7 @@ import { postData } from "@/shared/services/api/api-service";
 import { StatusCode } from "@/shared/types/enum";
 import { setItem } from "@/shared/utils/localStorage";
 import { auth } from "@/shared/services/firebase";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
 

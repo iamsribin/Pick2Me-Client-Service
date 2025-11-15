@@ -3,7 +3,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { toast } from "sonner";
 import { parseCoords, createVehicleIcon } from "@/shared/utils/mapUtils";
-import { RideRequest } from "../types/driver/ridetype";
+import { RideRequest } from "../types/driver/ride-type";
 // import { useDriverLocation } from "@/context/driver-location-context";
 import { Feature, LineString } from "geojson"; 
 

@@ -1,6 +1,6 @@
 import {
   Coordinates,
-} from "@/shared/types/commonTypes";
+} from "@/shared/types/common";
 
 interface DriverProfileData {
   name: string;

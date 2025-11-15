@@ -8,7 +8,7 @@ import {
 } from "@chakra-ui/react";
 import { toast } from "sonner";
 import ApiEndpoints from "@/constants/user-api-end-pointes";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { postData } from "@/shared/services/api/api-service";
 
 const OtpForm = ({

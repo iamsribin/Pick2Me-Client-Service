@@ -27,7 +27,7 @@ function DriverRoutes() {
 
   return (
     <>
-      <RideNotification />
+      {/* <RideNotification /> */}
 
       <Suspense fallback={<GlobalLoading {...loaderProps} />}>
         <Routes>

@@ -27,7 +27,7 @@ import { useSocket } from "@/context/socket-context";
 import { RootState } from "@/shared/services/redux/store";
 import { RideStatusData } from "@/shared/types/user/rideTypes";
 import { BackendVehicle, VehicleOption } from "./type";
-import { NotificationState, ResponseCom } from "@/shared/types/commonTypes";
+import { NotificationState, ResponseCom } from "@/shared/types/common";
 import { geocodeLatLng } from "@/shared/utils/locationToAddress";
 import { useNotification } from "@/shared/hooks/useNotificatiom";
 import { toast } from "sonner";

@@ -1,7 +1,6 @@
-// hooks/useChat.ts
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSocket } from "@/context/socket-context";
-import { Message } from "@/shared/types/commonTypes";
+import { Message } from "@/shared/types/common";
 
 interface UseChatProps {
   rideId: string;
