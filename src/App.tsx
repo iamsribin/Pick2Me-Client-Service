@@ -22,7 +22,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         {/* <NotificationModal /> */}
-        <GlobalLoading />
+        {/* <GlobalLoading /> */}
         <Routes>
           <Route path="/*" element={<UserRoutes />} />
           <Route path="/driver/*" element={<DriverRoutes />} />

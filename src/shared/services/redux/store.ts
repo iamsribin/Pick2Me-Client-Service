@@ -3,22 +3,16 @@
     persistStore,persistReducer,FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER
     } from 'redux-persist'
     
-    // import DriverRideSlice from "./slices/driverRideSlice";
     import storage from "redux-persist/lib/storage";
     import notificationSlice from "./slices/notificationSlice";
     import rideSlice from "./slices/rideSlice";
-    import LoadingSlice from "./slices/loadingSlice";
     import UserSlice from "./slices/userSlice";
-import { socketMiddleware } from "@/shared/middlewares/socketMiddleware";
+    import { socketMiddleware } from "@/shared/middlewares/socketMiddleware";
 
-    // const driverRideMapRideMapPersistConfig={key:"DriverRideMap",storage,version:1}
-    // // const LoadingPersistConfig={key:"Loading",storage,version:1}
     const RideDataPersistConfig={key:"RideData",storage,version:1}
     const UserPersistConfig={key:"UserSlice",storage,version:1}
     const NotificationPersistConfig={key:"NotificationSlice",storage,version:1}
 
-    // const DriverRideMapPersistReducer=persistReducer(driverRideMapRideMapPersistConfig,DriverRideSlice.reducer)
-    // const LoadingPersistConfigReducer = persistReducer(LoadingPersistConfig, LoadingSlice.reducer)
     const RideDataPersistReducer=persistReducer(RideDataPersistConfig,rideSlice.reducer)   
     const UserPersistReducer = persistReducer(UserPersistConfig, UserSlice.reducer);
     const NotificationReducer = persistReducer(NotificationPersistConfig, notificationSlice.reducer);
@@ -27,8 +21,6 @@ import { socketMiddleware } from "@/shared/middlewares/socketMiddleware";
         reducer:{
             notification: NotificationReducer,
             RideData:RideDataPersistReducer,
-            // driverRideMap: DriverRideMapPersistReducer,
-            loading: LoadingSlice.reducer,
             user: UserPersistReducer,
         },
         middleware: (getDefaultMiddleware) => {

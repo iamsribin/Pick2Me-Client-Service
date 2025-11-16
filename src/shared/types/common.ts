@@ -79,7 +79,8 @@ export interface Previews {
 export type SocketEvent =
   | { type: 'driver.location'; payload: DriverLocationMessage }
   | { type: 'ride.status'; payload: RideStatusMessage }
-  | { type: 'notification'; payload: NotificationMessage };
+  | { type: 'notification'; payload: NotificationMessage }
+  | { type: string; payload: any }; // for unknown events
 
 export interface DriverLocationMessage {
   rideId: string;
@@ -112,9 +113,44 @@ export interface NotificationMessage {
 }
 
 
+//loading
+export type LoadingType = 
+  | 'default'           // General loading
+  | 'ride-request'      // Requesting a ride
+  | 'ride-search'       // Searching for drivers
+  | 'ride-tracking'     // Tracking active ride
+  | 'payment'           // Processing payment
+  | 'location'          // Getting location
+  | 'profile'           // Profile operations
+  | 'authentication'    // Login/signup
+  | 'document-upload'   // Document verification
+  | 'driver-verification' // Driver verification process
+  | 'ride-completion'   // Completing ride
+  | 'booking'           // Booking operations
+  | 'map-loading';      // Map initialization
 
-
-// ===================^^^using^^^^===============================
+  
+  // ===================^^^using^^^^===============================
+  // export interface LoadingState {
+  //   isLoading: boolean;
+  //   loadingType: LoadingType;
+  //   loadingMessage?: string;
+  //   progress?: number; // For operations that can show progress (0-100)
+  // }
+  
+  // const initialState: LoadingState = {
+  //   isLoading: false,
+  //   loadingType: 'default',
+  //   loadingMessage: undefined,
+  //   progress: undefined,
+  // };
+  
+  // export interface SetLoadingPayload {
+  //   isLoading: boolean;
+  //   loadingType?: LoadingType;
+  //   loadingMessage?: string;
+  //   progress?: number;
+  // }
 
 // interface Message {
 //   sender: "driver" | "user";

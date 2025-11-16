@@ -1,6 +1,3 @@
-import { DriverInterface } from "@/shared/types/driver/driver-type";
-
-// Add this to your existing type.ts file
 
 interface DriverAccountTabProps {
   driver:AdminDriverDetailsDTO;
@@ -44,10 +41,6 @@ export type {DriverDetailsTabProps,
   Feedback
 }
 
-
-
-import { AccountStatus } from "@/shared/types/driver/driver-type";
-
 export interface Res_getDriversListByAccountStatus {
     id: string;
     name: string;
@@ -71,7 +64,7 @@ export interface AdminDriverDetailsDTO {
   todayEarnings: number;
   totalCompletedRides: number;
   totalCancelledRides: number;
-  accountStatus: AccountStatus;
+  accountStatus: "Good" | "Rejected" | "Blocked" | "Pending" | "Incomplete";
   isOnline:boolean;
   transactionCount:number;
   feedbackCount:number;

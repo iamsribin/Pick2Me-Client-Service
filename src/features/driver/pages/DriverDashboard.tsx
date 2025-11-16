@@ -5,9 +5,11 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { CircleDollarSign, Clock, Navigation2, Star } from "lucide-react";
 import DriverNavbar from "../components/DriverNavbar";
-import { RootState } from "@/shared/services/redux/store";
+import { RootState, store } from "@/shared/services/redux/store";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "@/shared/hooks/use-toast";
+import { socketMiddleware } from "@/shared/middlewares/socketMiddleware";
+import { emitSocket } from "@/shared/utils/emitSocket";
 
 const DriverDashboard = () => {
   const dispatch = useDispatch();
@@ -24,6 +26,8 @@ const DriverDashboard = () => {
       toast({description: "You can't go offline while you're on a ride.", variant: "error"});
       return;
     }
+
+    store.dispatch(emitSocket("hello",{msg:"Hello from client"}));
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(

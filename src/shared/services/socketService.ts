@@ -1,22 +1,31 @@
 import { io, Socket } from "socket.io-client";
-import type { SocketEvent } from "../types/common";
+import { handleLogout, startRefresh } from "../utils/auth";
+import axios from "axios";
+import { toast } from "../hooks/use-toast";
 
-type EventHandler = (ev: SocketEvent) => void;
+const API_VERSION = import.meta.env.VITE_API_VERSION ?? "v2";
+const API_URL = `${import.meta.env.VITE_API_GATEWAY_URL}/${API_VERSION}`;
+
+type Handler = (...args: any[]) => void;
+type EventName = string;
 
 class SocketService {
   private socket: Socket | null = null;
-  private handlers = new Set<EventHandler>();
+  private eventHandlers: Map<EventName, Set<Handler>> = new Map();
   private bc: BroadcastChannel | null = null;
   private isLeader = false;
   private reconnectAttempts = 0;
   private reconnectTimeout: number | null = null;
 
   private readonly maxAttempts = 5;
-  private readonly baseDelay = 500; // ms
+  private readonly baseDelay = 500;
+
+  /* ---------- BroadcastChannel handling ---------- */
 
   private handleBcMessage = (ev: MessageEvent) => {
     const data = ev.data;
     if (!data || !data.type) return;
+
     switch (data.type) {
       case "request-leader":
         if (this.isLeader) this.bc!.postMessage({ type: "iam-leader" });
@@ -31,11 +40,14 @@ class SocketService {
       case "release-leader":
         this.tryClaimLeader();
         break;
+
       case "socket-event":
-        if (!this.isLeader && this.handlers)
-          this.handlers.forEach((h) => h(data.payload));
+        this.invokeLocalHandlers(data.event, data.payload);
         break;
+
+      // other tab wants leader to emit:
       case "emit":
+        console.log("leader emitting event", data.event);
         if (this.isLeader && this.socket?.connected) {
           this.socket.emit(data.event, data.payload);
         }
@@ -43,7 +55,7 @@ class SocketService {
     }
   };
 
-  initBroadcastChannel() {
+  private initBroadcastChannel() {
     try {
       this.bc = new BroadcastChannel("ws-leader");
       this.bc.addEventListener("message", this.handleBcMessage);
@@ -55,10 +67,11 @@ class SocketService {
     }
   }
 
+  /* ---------- Leader election ---------- */
+
   async tryClaimLeader() {
     if (!this.bc) return (this.isLeader = true);
-    // random small delay to avoid collision
-    const jitter = Math.floor(Math.random() * 100); // 0-100ms
+    const jitter = Math.floor(Math.random() * 100);
     this.bc.postMessage({ type: "request-leader" });
     let answered = false;
     const onMsg = (ev: MessageEvent) => {
@@ -70,21 +83,54 @@ class SocketService {
     if (!answered) {
       this.isLeader = true;
       this.bc.postMessage({ type: "iam-leader" });
-    } else this.isLeader = false;
+    } else {
+      this.isLeader = false;
+    }
   }
 
-  registerEventHandler(cb: EventHandler) {
-    this.handlers.add(cb);
-    return () => this.handlers.delete(cb);
+  /* ---------- Public API to register handlers ---------- */
+
+  on(event: EventName, handler: Handler) {
+    let set = this.eventHandlers.get(event);
+    if (!set) {
+      set = new Set();
+      this.eventHandlers.set(event, set);
+    }
+    set.add(handler);
+
+    if (this.isLeader && this.socket && set.size === 1) {
+      this.attachSocketListenerForEvent(event);
+    }
+
+    return () => {
+      set!.delete(handler);
+      if (set!.size === 0) {
+        this.eventHandlers.delete(event);
+
+        this.detachSocketListenerForEvent(event);
+      }
+    };
   }
+
+  private invokeLocalHandlers(event: EventName, payload: any) {
+    const set = this.eventHandlers.get(event);
+    if (!set) return;
+    for (const h of set) {
+      try {
+        h(payload);
+      } catch (err) {
+        console.error("[SocketService] handler error", err);
+      }
+    }
+  }
+
+  /* ---------- Socket connection lifecycle ---------- */
 
   connect() {
     if (!this.bc) this.initBroadcastChannel();
 
     this.tryClaimLeader().then(() => {
-      if (!this.isLeader) {
-        return;
-      }
+      if (!this.isLeader) return;
       this.openSocket();
     });
   }
@@ -105,9 +151,11 @@ class SocketService {
         this.reconnectTimeout = null;
       }
       this.reconnectAttempts = 0;
-
       console.info("[SocketService] connected", this.socket?.id);
-      // heartbeat handled by socket.io, but you can implement custom ping
+
+      for (const event of this.eventHandlers.keys()) {
+        this.attachSocketListenerForEvent(event);
+      }
     });
 
     this.socket.on("disconnect", (reason: any) => {
@@ -115,63 +163,101 @@ class SocketService {
       if (this.isLeader) this.scheduleReconnect();
     });
 
-    this.socket.on("connect_error", (err: any) => {
-      console.error("[SocketService] connect_error", err);
+    this.socket.on("connect_error", async (err: any) => {
+      const msg = (err && err.message) || "";
+      if (msg.includes("token_expired") || msg.includes("no_access_token")) {
+        try {
+          await startRefresh(async () => {
+            await axios.get(`${API_URL}/refresh`, { withCredentials: true });
+          });
+          if (this.isLeader) this.scheduleReconnect();
+        } catch (refreshErr) {
+          await handleLogout();
+        }
+        return;
+      }
+
+      if (
+        msg.includes("no_cookies") ||
+        msg.includes("user_blocked") ||
+        msg.includes("invalid_token") ||
+        msg.includes("auth_error")
+      ) {
+        toast({ description: msg, variant: "error" });
+        await handleLogout();
+        return;
+      }
+      console.error("[SocketService] connect_error (unknown)", err);
       if (this.isLeader) this.scheduleReconnect();
     });
-
-    this.socket.on("event", (ev: SocketEvent) => {
-      if (this.handlers) this.handlers.forEach((h) => h(ev));
-      if (this.bc) this.bc.postMessage({ type: "socket-event", payload: ev });
-    });
   }
 
-private scheduleReconnect() {
-  // already at or above limit?
-  if (this.reconnectAttempts >= this.maxAttempts) {
-    console.error("[SocketService] max reconnect attempts reached");
-    return;
+  //only call if isLeader and socket connected
+  private attachSocketListenerForEvent(event: string) {
+    if (!this.socket) return;
+
+    const wrapper = (payload: any) => {
+      this.invokeLocalHandlers(event, payload);
+      if (this.bc) this.bc.postMessage({ type: "socket-event", event, payload });
+    };
+
+    this.socket.on(event, wrapper);
+
+    (this as any).__socketWrappers = (this as any).__socketWrappers || new Map();
+    (this as any).__socketWrappers.set(event, wrapper);
   }
 
-  // if a reconnect is already scheduled, don't schedule another
-  if (this.reconnectTimeout !== null) {
-    console.debug("[SocketService] reconnect already scheduled, skipping");
-    return
-}
-
-  // increment attempt count first so log shows the attempt number
-  this.reconnectAttempts += 1;
-  console.log("[SocketService] scheduling reconnect attempt", this.reconnectAttempts);
-
-  const jitter = Math.random() * 200;
-  const delay = Math.min(30000, this.baseDelay * 2 ** (this.reconnectAttempts - 1)) + jitter;
-
-  // store the timer id so we can cancel it if needed
-  this.reconnectTimeout = window.setTimeout(() => {
-    this.reconnectTimeout = null; // clear the pending flag
-    // only try to open the socket if we're still leader
-    if (this.isLeader) {
-      this.openSocket();
-    } else {
-      console.debug("[SocketService] not leader at reconnect time — skipping openSocket");
+  private detachSocketListenerForEvent(event: string) {
+    if (!this.socket) return;
+    const map: Map<string, Handler> = (this as any).__socketWrappers;
+    if (!map) return;
+    const wrapper = map.get(event);
+    if (wrapper) {
+      this.socket.off(event, wrapper);
+      map.delete(event);
     }
-  }, delay);
-}
+  }
 
+  private scheduleReconnect() {
+    if (this.reconnectAttempts >= this.maxAttempts) {
+      toast({
+        description: "Max reconnect attempts reached",
+        variant: "error",
+      });
+      return;
+    }
+    if (this.reconnectTimeout !== null) return;
+
+    this.reconnectAttempts += 1;
+    const jitter = Math.random() * 200;
+    const delay =
+      Math.min(30000, this.baseDelay * 2 ** (this.reconnectAttempts - 1)) +
+      jitter;
+
+    this.reconnectTimeout = window.setTimeout(() => {
+      this.reconnectTimeout = null;
+      if (this.isLeader) this.openSocket();
+    }, delay);
+  }
+
+  /* ---------- Emit (cross-tab safe) ---------- */
 
   emit(event: string, payload: any) {
+
     if (this.socket?.connected && this.isLeader) {
       this.socket.emit(event, payload);
       return;
     }
 
     if (this.bc) {
+      console.log("asking to the leader to emit");
       this.bc.postMessage({ type: "emit", event, payload });
       return;
     }
-    console.warn(
-      "SocketService not connected and no BroadcastChannel to forward emit."
-    );
+    toast({
+      description: "SocketService not connected and no BroadcastChannel to forward emit.",
+      variant: "error",
+    });
   }
 
   disconnect() {

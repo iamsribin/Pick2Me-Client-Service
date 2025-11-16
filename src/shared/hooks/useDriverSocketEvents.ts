@@ -1,46 +1,54 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import SocketService from "@/shared/services/socketService";
+import { useDispatch } from "react-redux";
 import { rideLocationReceived } from "../services/redux/slices/rideSlice";
 import { notificationReceived } from "../services/redux/slices/notificationSlice";
-import { store } from "../services/redux/store";
 
 export function useDriverSocketEvents() {
+  const dispatch = useDispatch();
+  const latestPosRef = useRef<any>(null);
+  const flushTimerRef = useRef<number | null>(null);
 
-  let latestPos: any = null;
-  let flushTimer: number | null = null;
-  
   const flush = () => {
-    if (latestPos) {
-      store.dispatch(rideLocationReceived(latestPos));
-      latestPos = null;
+    if (latestPosRef.current) {
+      dispatch(rideLocationReceived(latestPosRef.current));
+      latestPosRef.current = null;
     }
-    if (flushTimer) {
-      window.clearTimeout(flushTimer);
-      flushTimer = null;
+    if (flushTimerRef.current) {
+      window.clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
     }
   };
 
   useEffect(() => {
-    const unregister =  SocketService.registerEventHandler((ev) => {
-    if (ev.type === "driver.location") {
-      latestPos = ev.payload; 
-      if (!flushTimer) {
-        flushTimer = window.setTimeout(flush, 200); // 5Hz
-      }
-      return;
-    }
-    switch (ev.type) {
-      case 'notification':
-        store.dispatch(notificationReceived(ev.payload));
-        break;
-      case 'ride.status':
-        // storeAPI.dispatch(rideStatusReceived(ev.payload));
-        break;
-      default:
-        console.warn('unknown', ev);
-    }
-  });
+    SocketService.connect();
 
-    return () => { unregister(); };
-  }, []);
+    const offNotification = SocketService.on("notification", (data) => {
+      dispatch(notificationReceived(data));
+    });
+
+    const offHai = SocketService.on("hai", (data) => {
+      console.log("hai", data);
+    });
+
+    const offDriverLocation = SocketService.on("driver.location", (data) => {
+      latestPosRef.current = data;
+      if (!flushTimerRef.current) {
+        flushTimerRef.current = window.setTimeout(flush, 200);
+      }
+    });
+
+    return () => {
+      offNotification();
+      offDriverLocation();
+      offHai();
+      if (flushTimerRef.current) {
+        window.clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      latestPosRef.current = null;
+      // tab to release leadership
+      // socket connected at App-level; only disconnect on logout or unmount of App
+    };
+  }, [dispatch]);
 }
