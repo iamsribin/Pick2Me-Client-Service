@@ -14,7 +14,7 @@ import { userLogin } from "@/shared/services/redux/slices/userSlice";
 import { useDispatch } from "react-redux";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 
 interface DriverLoginFormProps {
   auth: any;
@@ -76,7 +76,7 @@ const DriverLoginForm = ({
       setLoad(true);
       try {
         const response = await postData<ResponseCom["data"]>(
-          DriverApiEndpoints.DRIVER_CHECK_LOGIN,
+          DriverApiEndpoints.CHECK_LOGIN_NUMBER,
           values
         );
         
@@ -131,7 +131,7 @@ const DriverLoginForm = ({
 
   const loginDriver = async () => {
     try {
-      const response = await postData<ResponseCom["data"]>(DriverApiEndpoints.DRIVER_CHECK_LOGIN, {
+      const response = await postData<ResponseCom["data"]>(DriverApiEndpoints.CHECK_LOGIN_NUMBER, {
         mobile: formik.values.mobile,
       });
       const data = response?.data;

@@ -24,7 +24,7 @@ import {
 import { RootState } from "@/shared/services/redux/store";
 import { loadStripe } from "@stripe/stripe-js";
 import { postData } from "@/shared/services/api/api-service";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { useSocket } from "@/context/socket-context";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);

@@ -1,4 +1,4 @@
-import { Coordinates } from "@/shared/types/commonTypes";
+import { Coordinates } from "@/shared/types/common";
 
 export interface BookingListType {
   _id: string;

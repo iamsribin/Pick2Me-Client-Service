@@ -1,40 +1,49 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import type { NotificationMessage } from '@/shared/types/common';
 
-interface NotificationState {
-  isOpen: boolean;
-  type: "info" | "alert" | "ride-accepted" | "admin-blocked" | "success" | "error" | "payment-confirmation"; // <-- added
-  message: string;
-  navigate?: string;
-  data?: any;
-}
-
-const initialState: NotificationState = {
-  isOpen: false,
-  type: "info",
-  message: "",
-  data: null,
-  navigate: ""
-};
-
-const notificationSlice = createSlice({
-  name: "notification",
-  initialState,
+const slice = createSlice({
+  name: 'notifications',
+  initialState: {
+    items: [] as NotificationMessage[],
+    lastSeenId: null as string | null,
+  },
   reducers: {
-    showNotification: (state, action: PayloadAction<Omit<NotificationState, "isOpen">>) => {
-      state.isOpen = true;
-      state.type = action.payload.type;
-      state.message = action.payload.message;
-      state.data = action.payload.data;
-      state.navigate = action.payload.navigate
+    notificationReceived(state, action: PayloadAction<NotificationMessage>) {
+      const n = action.payload;
+      // dedupe
+      if (state.items.some(i => i.id === n.id)) return;
+      state.items.unshift(n); 
     },
-    hideNotification: (state) => {
-      state.isOpen = false;
-      state.message = "";
-      state.data = null;
-      state.navigate = "";
+    markRead(state, action: PayloadAction<string>) {
+      const id = action.payload;
+      const item = state.items.find(i => i.id === id);
+      if (item) item.read = true;
+    },
+    markAllAsRead(state) {
+      state.items.forEach(item => {
+        item.read = true;
+      });
+    },
+    clearNotification(state, action: PayloadAction<string>) {
+      const id = action.payload;
+      state.items = state.items.filter(i => i.id !== id);
+    },
+    clearAllNotifications(state) {
+      state.items = [];
+    },
+    setNotifications(state, action: PayloadAction<NotificationMessage[]>) {
+      state.items = action.payload;
     },
   },
 });
 
-export const { showNotification, hideNotification } = notificationSlice.actions;
-export default notificationSlice.reducer;   
+export const { 
+  notificationReceived, 
+  markRead, 
+  markAllAsRead,
+  clearNotification,
+  clearAllNotifications,
+  setNotifications
+} = slice.actions;
+
+export default slice;

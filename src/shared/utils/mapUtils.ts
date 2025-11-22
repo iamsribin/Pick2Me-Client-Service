@@ -1,4 +1,4 @@
-import { Coordinates } from "@/shared/types/commonTypes";
+import { Coordinates } from "@/shared/types/common";
 
 export const parseCoords = (coords: Coordinates | undefined): [number, number] | null => {
   if (!coords) return null;

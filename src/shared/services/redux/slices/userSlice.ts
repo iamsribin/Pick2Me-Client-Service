@@ -1,4 +1,4 @@
-import { Role } from "@/shared/types/commonTypes";
+import { Role } from "@/shared/types/common";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface UserState {
@@ -19,8 +19,8 @@ const initialState: UserState = {
   OnlineTimestamp:null,
 };
 
-const driverAuthSlice = createSlice({
-  name: "driverAuth",
+const userSlice = createSlice({
+  name: "user",
   initialState,
   reducers: {
     userLogin: (
@@ -55,6 +55,6 @@ const driverAuthSlice = createSlice({
   },
 });
 
-export const { userLogin, userLogout, setOnline } = driverAuthSlice.actions;
+export const { userLogin, userLogout, setOnline } = userSlice.actions;
 
-export default driverAuthSlice;
+export default userSlice;

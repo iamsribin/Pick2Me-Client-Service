@@ -14,10 +14,11 @@ const Navbar: React.FC = () => {
   const navigate = useNavigate();
   
   const user = store.getState().user.role === "User"
-  const rideData = useSelector((state: RootState) => state.RideMap.rideData);
-  const paymentStatus = useSelector((state: RootState) => state.RideMap.paymentStatus);
+  // const rideData = useSelector((state: RootState) => state.RideMap.rideData);
+  // const paymentStatus = useSelector((state: RootState) => state.RideMap.paymentStatus);
     
-
+const rideData = null;
+const paymentStatus = null;
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);

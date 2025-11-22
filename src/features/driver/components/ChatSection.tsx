@@ -5,8 +5,8 @@ import { Button } from "@/shared/components/ui/button";
 import { Send, Wifi, WifiOff } from "lucide-react";
 import { addChatMessage } from "@/shared/services/redux/slices/driverRideSlice";
 import ImageCapture from "./ImageCapture";
-import { Message } from "@/shared/types/commonTypes";
-import { RideRequest } from "@/shared/types/driver/ridetype";
+import { Message } from "@/shared/types/common";
+import { RideRequest } from "@/shared/types/driver/ride-type";
 import { useChat } from "@/shared/hooks/useChat"; 
 import { toast } from "sonner";
 

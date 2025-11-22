@@ -19,7 +19,7 @@ import { ArrowLeft } from "lucide-react";
 import { Booking } from "@/shared/types/ride/ride";
 import { fetchData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 
 const BookingDetail: React.FC = () => {
   const { bookingId } = useParams<{ bookingId: string }>();

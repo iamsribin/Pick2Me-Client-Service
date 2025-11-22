@@ -1,4 +1,4 @@
-import { CustomerDetails, LocationCoordinates } from "@/shared/types/commonTypes";
+import { CustomerDetails, LocationCoordinates } from "@/shared/types/common";
 
 interface RideDetails {
   rideId: string;

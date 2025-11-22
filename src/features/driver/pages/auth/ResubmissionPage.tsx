@@ -12,7 +12,7 @@ import {
   ResponseCom,
   ResubmissionData,
   ResubmissionFormValues,
-} from "@/shared/types/commonTypes";
+} from "@/shared/types/common";
 import { getItem, removeItem } from "@/shared/utils/localStorage";
 import { fetchData, postData, updateData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";

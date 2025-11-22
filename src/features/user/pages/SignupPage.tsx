@@ -13,7 +13,7 @@ import {
 import { signupValidation } from "@/shared/utils/validation";
 import UserApiEndpoints from "@/constants/user-api-end-pointes";
 import { postData } from "@/shared/services/api/api-service";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
 

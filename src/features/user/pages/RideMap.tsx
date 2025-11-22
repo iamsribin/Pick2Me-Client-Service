@@ -55,7 +55,7 @@ import {
   DialogTrigger,
 } from "@/shared/components/ui/dialog";
 import { Booking, RideStatusData } from "@/shared/types/user/rideTypes";
-import { Coordinates, Message, ResponseCom } from "@/shared/types/commonTypes";
+import { Coordinates, Message, ResponseCom } from "@/shared/types/common";
 import { postData, patchData } from "@/shared/services/api/api-service";
 import ApiEndpoints from "@/constants/user-api-end-pointes";
 import debounce from "lodash/debounce";

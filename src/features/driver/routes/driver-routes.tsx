@@ -3,9 +3,10 @@ import { Routes, Route } from "react-router-dom";
 import PublicRoute from "@/routes/public-route";
 import ProtectedRoute from "@/routes/protected-route";
 import AppRoutes from "@/constants/app-routes";
-import RideNotification from "../components/RideNotification";
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading"; 
+import { useDriverSocketEvents } from "@/shared/hooks/useDriverSocketEvents";
 
+import RideNotification from "../components/RideNotification";
 const DriverLoginPage = lazy(() => import("../pages/auth/DriverLoginPage"));
 const DriverSignupPage = lazy(() => import("../pages/auth/DriverSignupPage"));
 const ResubmissionPage = lazy(() => import("../pages/auth/ResubmissionPage"));
@@ -24,11 +25,11 @@ function DriverRoutes() {
     isLoading: true,
     loadingMessage: "Loading page..."
   };
-
+useDriverSocketEvents()
   return (
     <>
-      <RideNotification />
-
+      {/* <RideNotification /> */}
+       
       <Suspense fallback={<GlobalLoading {...loaderProps} />}>
         <Routes>
           <Route element={<ProtectedRoute allowedRole={"Driver"} />}>

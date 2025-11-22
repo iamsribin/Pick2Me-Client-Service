@@ -3,7 +3,7 @@ import { FormikProps } from "formik";
 import {
   ResubmissionFormValues,
   Previews,
-} from "../types/commonTypes";
+} from "../types/common";
 
 export const handleFileInput = (
   fieldName: string,

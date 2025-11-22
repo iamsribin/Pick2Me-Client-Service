@@ -1,6 +1,6 @@
 import {
   Coordinates,
-} from "@/shared/types/commonTypes";
+} from "@/shared/types/common";
 
 interface DriverProfileData {
   name: string;
@@ -9,7 +9,7 @@ interface DriverProfileData {
   driverImage: string;
   address: string;
   totalRatings: number;
-  joiningDate: Date;
+  joiningDate: string;
   completedRides: number;
   cancelledRides: number;
   walletBalance: number;

@@ -4,7 +4,7 @@ import DriverPhotoPage from "./DriverPhoto";
 import { Player } from "@lottiefiles/react-lottie-player";
 import { DriverIdentificationValidation } from "@/shared/utils/validation";
 import { postData } from "@/shared/services/api/api-service";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
 import { FaIdCard, FaCalendarAlt, FaUpload } from "react-icons/fa";
 import { handleCustomError } from "@/shared/utils/error";

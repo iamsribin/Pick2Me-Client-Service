@@ -5,18 +5,20 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { CircleDollarSign, Clock, Navigation2, Star } from "lucide-react";
 import DriverNavbar from "../components/DriverNavbar";
-import { RootState } from "@/shared/services/redux/store";
+import { RootState, store } from "@/shared/services/redux/store";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "@/shared/hooks/use-toast";
+import { socketMiddleware } from "@/shared/middlewares/socketMiddleware";
+import { emitSocket } from "@/shared/utils/emitSocket";
 
 const DriverDashboard = () => {
   const dispatch = useDispatch();
   
   // const driverId = useSelector((state) => state.user.id);
   // const isOnline = useSelector((state) => state.user.isOnline);
-  const rideData = useSelector((state: RootState) => state.driverRideMap);
-  const isOpen = useSelector((state: RootState) => state.driverRideMap.isOpen);;
-
+  // const rideData = useSelector((state: RootState) => state.driverRideMap);
+  // const isOpen = useSelector((state: RootState) => state.driverRideMap.isOpen);;
+  const isOpen = false;
   const [online, setOnline] = React.useState(false);
 
   const handleOnlineChange = useCallback(async (checked:boolean) => {
@@ -24,6 +26,8 @@ const DriverDashboard = () => {
       toast({description: "You can't go offline while you're on a ride.", variant: "error"});
       return;
     }
+
+    store.dispatch(emitSocket("hello",{msg:"Hello from client"}));
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -39,7 +43,7 @@ const DriverDashboard = () => {
     } else {
       toast({description: "Geolocation is not supported by your browser", variant: "error"});
     }
-  }, [rideData]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#e8c58c] via-[#f5e5c8] to-[#ffffff] flex flex-col">

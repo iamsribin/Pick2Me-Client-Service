@@ -1,4 +1,4 @@
-import { Previews, ResubmissionData, ResubmissionFormValues } from "@/shared/types/commonTypes";
+import { Previews, ResubmissionData, ResubmissionFormValues } from "@/shared/types/common";
 import { FormikProps } from "formik";
 
 interface MapProps {

@@ -4,12 +4,9 @@ import { useFormik } from "formik";
 import { Eye } from "lucide-react";
 import { Button } from "@chakra-ui/react";
 import { userBlockUnblockValidation } from "@/shared/utils/validation";
-import ApiEndpoints from "@/constants/user-api-end-pointes";
-import { useSocket } from "@/context/socket-context";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import {
   fetchData,
-  patchData,
   updateData,
 } from "@/shared/services/api/api-service";
 import { AdminApiEndpoints } from "@/constants/admin-api-end-pointes";
@@ -21,7 +18,6 @@ const UserDetails = () => {
   const [reasonModal, setReasonModal] = useState(false);
   const [userData, setUserData] = useState<ResponseCom["data"] | null>(null);
   const { id } = useParams();
-  const { socket, isConnected } = useSocket();
 
   const getData = async () => {
     try {
@@ -60,7 +56,6 @@ const UserDetails = () => {
           setStatusModal(false);
           toast({description:"Status updated successfully!", variant:"success"});
           getData();
-          console.log("Socket status:", { socket, isConnected });
         } 
       } catch (error) {
         handleCustomError(error)

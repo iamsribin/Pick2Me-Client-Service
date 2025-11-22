@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useDispatch } from "react-redux";
 import { addChatMessage } from "@/shared/services/redux/slices/driverRideSlice";
 import { useSocket } from "@/context/socket-context";
-import { Message, ResponseCom } from "@/shared/types/commonTypes";
+import { Message, ResponseCom } from "@/shared/types/common";
 import { postData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
 

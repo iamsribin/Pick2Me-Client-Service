@@ -1,94 +1,43 @@
-import { Coordinates, Message } from "@/shared/types/commonTypes";
-import { RideStatusData } from "@/shared/types/user/rideTypes";
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import type { DriverLocationMessage, PaymentStatus, RideStatusMessage } from '@/shared/types/common';
 
-interface RideState {
-  isOpen: boolean;
-  rideData: RideStatusData | null;
-  paymentStatus: "idle" | "pending" | "completed" | "failed";
-}
+type PositionsMap = Record<string, DriverLocationMessage[]>; // rideId -> positions
 
-const initialState: RideState = {
-  isOpen: false,
-  rideData: null,
-  paymentStatus: "idle",
-};
+const MAX_BUFFER = 200;
 
-const RideMapSlice = createSlice({
-  name: "RideMap",
-  initialState,
+const slice = createSlice({
+  name: 'ride',
+  initialState: {
+    latest: {} as Record<string, DriverLocationMessage | undefined>,
+    positions: {} as PositionsMap,
+    status: {} as Record<string, RideStatusMessage | undefined>,
+    paymentStatus: {} as Record<string, PaymentStatus| undefined>
+  },
   reducers: {
-    showRideMap: (state, action: PayloadAction<RideStatusData>) => {
-      state.isOpen = true;
-      state.rideData = {
-        ...action.payload,
-        chatMessages: action.payload.chatMessages ?? [],
-      };
-    },
-    hideRideMap: (state) => {
-      state.isOpen = false;
-      state.rideData = null;
-    },
-    updateRideStatus: (
-      state,
-      action: PayloadAction<{
-        ride_id: string;
-        status: RideStatusData["status"];
-        driverCoordinates?: Coordinates;
-      }>
-    ) => {
-      if (state.rideData && state.rideData.ride_id === action.payload.ride_id) {
-        state.rideData.status = action.payload.status;
-        if (action.payload.driverCoordinates) {
-          state.rideData.driverCoordinates = action.payload.driverCoordinates;
-        }
-        state.rideData.chatMessages = state.rideData.chatMessages ?? [];
+    rideLocationReceived(state, action: PayloadAction<DriverLocationMessage>) {
+      const p = action.payload;
+      const arr = state.positions[p.rideId] ?? [];
+      const last = arr[arr.length - 1];
+
+      if (p.id && arr.some(a => a.id === p.id)) return;
+
+      if (last && p.seq !== undefined && last.seq !== undefined && p.seq <= last.seq) {
+        return;
       }
-    },
 
-    updateRideStatusOnly: (
-      state,
-      action: PayloadAction<RideStatusData["status"]>
-    ) => {
-      if (state.rideData && action.payload) {
-        state.rideData.status = action.payload;
-      }
+      arr.push(p);
+      if (arr.length > MAX_BUFFER) arr.shift();
+      state.positions[p.rideId] = arr;
+      state.latest[p.rideId] = p;
     },
-
-    addChatMessage: (
-      state,
-      action: PayloadAction<{ ride_id: string; message: Message }>
-    ) => {
-      if (state.rideData && state.rideData.ride_id === action.payload.ride_id) {
-        state.rideData.chatMessages = [
-          ...(state.rideData.chatMessages ?? []),
-          action.payload.message,
-        ];
-      }
-    },
-
-    setPaymentStatus: (
-      state,
-      action: PayloadAction<RideState["paymentStatus"]>
-    ) => {
-      state.paymentStatus = action.payload;
-    },
-
-    clearRide: (state) => {
-      state.isOpen = false;
-      state.rideData = null;
-      state.paymentStatus = "idle";
+    rideStatusReceived(state, action: PayloadAction<RideStatusMessage>) {
+      const s = action.payload;
+      const current = state.status[s.rideId];
+      if (current && current.updatedAt > s.updatedAt) return;
+      state.status[s.rideId] = s;
     },
   },
 });
 
-export const {
-  showRideMap,
-  hideRideMap,
-  updateRideStatus,
-  addChatMessage,
-  setPaymentStatus,
-  updateRideStatusOnly,
-  clearRide,
-} = RideMapSlice.actions;
-export default RideMapSlice;
+export const { rideLocationReceived, rideStatusReceived } = slice.actions;
+export default slice;

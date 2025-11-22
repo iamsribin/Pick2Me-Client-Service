@@ -1,8 +1,4 @@
-// GlobalLoading.tsx
 import React from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "@/shared/services/redux/store";
-import { LoadingType } from "@/shared/services/redux/slices/loadingSlice";
 import {
   Car,
   MapPin,
@@ -16,6 +12,7 @@ import {
   Shield,
 } from "lucide-react";
 import { Progress } from "@/shared/components/ui/progress";
+import { LoadingType } from "@/shared/types/common";
 
 type LoadingProps = {
   isLoading?: boolean;
@@ -158,12 +155,10 @@ const Spinner: React.FC<{ color: string }> = ({ color }) => (
 
 const GlobalLoading: React.FC<LoadingProps> = (props) => {
   // fallback to redux store when props are not provided
-  const store = useSelector((state: RootState) => state.loading);
-
-  const isLoading = typeof props.isLoading === "boolean" ? props.isLoading : store.isLoading;
-  const loadingType = props.loadingType ?? store.loadingType ?? "default";
-  const loadingMessage = props.loadingMessage ?? store.loadingMessage;
-  const progress = typeof props.progress === "number" ? props.progress : store.progress;
+  const isLoading = typeof props.isLoading;
+  const loadingType = props.loadingType ?? "default";
+  const loadingMessage = props.loadingMessage;
+  const progress =  props.progress;
   if (!isLoading) return null;
     
   const config = loadingConfigs[loadingType] ?? loadingConfigs["default"];

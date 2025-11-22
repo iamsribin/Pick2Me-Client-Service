@@ -9,7 +9,7 @@ import { loginValidation } from "@/shared/utils/validation";
 import ApiEndpoints from "@/constants/user-api-end-pointes";
 import { LoginFormProps } from "./type";
 import { postData } from "@/shared/services/api/api-service";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { userLogin } from "@/shared/services/redux/slices/userSlice";
 import { useDispatch } from "react-redux";
 import { toast } from "@/shared/hooks/use-toast";
@@ -64,11 +64,7 @@ const LoginForm = ({
           setUserData({
             user: data.name,
             user_id: data._id,
-            userToken: data.token,
-            loggedIn: true,
             role: data.role,
-            mobile: data.mobile,
-            profile: data.profile,
           });
         } else if (data.message === "Blocked") {
           toast({description:"Your account is blocked!", variant:"error"});
@@ -76,6 +72,8 @@ const LoginForm = ({
           toast({description:"Not registered! Please register to continue."});
         }
       } catch (err) {
+        console.log(err);
+        
         handleCustomError(err);
       } finally {
         setLoading(false);

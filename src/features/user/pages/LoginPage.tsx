@@ -7,9 +7,8 @@ import LoginForm from "../components/forms/LoginForm";
 import { auth } from "@/shared/services/firebase";
 import { jwtDecode } from "jwt-decode";
 import { DecodedToken } from "../components/forms/type";
-import { UserAuthData } from "@/shared/types/user/userTypes";
 import { postData } from "@/shared/services/api/api-service";
-import { ResponseCom } from "@/shared/types/commonTypes";
+import { ResponseCom } from "@/shared/types/common";
 import { userLogin } from "@/shared/services/redux/slices/userSlice";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
@@ -21,14 +20,14 @@ const Login = () => {
 
   const [confirmationResult, setConfirmationResult] =
     useState<ConfirmationResult | null>(null);
-  const [userData, setUserData] = useState<UserAuthData>({
+  const [userData, setUserData] = useState<{
+    user_id: string;
+    user: string;
+    role: "User" | "Admin";
+  }>({
     user: "",
     user_id: "",
-    userToken: "",
-    loggedIn: false,
     role: "User",
-    mobile: undefined,
-    profile: "",
   });
   const [otpInput, setOtpInput] = useState(false);
   const [otp, setOtp] = useState<number>(0);
@@ -48,54 +47,52 @@ const Login = () => {
       );
 
       const res = response?.data;
-      console.log("res",res);
+      console.log("res", res);
 
-      if (response?.status == 200 &&res.message === "Authentication successful") {
+      if (
+        response?.status == 200 &&
+        res.message === "Authentication successful"
+      ) {
         const role = res.role as "User" | "Admin";
-        toast({description:"Login Success", variant: "success"});
-        // authService.set(res.token)
-        localStorage.setItem("token",res.token)
-        dispatch(
-          userLogin({ name: res.name, role, id: res._id })
-        );
+        toast({ description: "Login Success", variant: "success" });
+        dispatch(userLogin({ name: res.name, role, id: res._id }));
         if (role === "Admin") {
           navigate("/admin/dashboard");
         } else {
           navigate("/");
         }
-
       } else if (res.message === "Blocked") {
-        toast({description:"Your account is blocked", variant: "success"});
+        toast({ description: "Your account is blocked", variant: "success" });
       } else {
-        toast({description:"Your account is blocked"});
+        toast({ description: "Your account is blocked" });
       }
     } catch (err) {
-      handleCustomError(err)
+      handleCustomError(err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-        <>
-        <LoginForm
-          auth={auth}
-          otpInput={otpInput}
-          setOtpInput={setOtpInput}
-          otp={otp}
-          setOtp={setOtp}
-          counter={counter}
-          setCounter={setCounter}
-          confirmationResult={confirmationResult}
-          setConfirmationResult={setConfirmationResult}
-          userData={userData}
-          setUserData={setUserData}
-          onGoogleLogin={handleGoogleLogin}
-          setLoading={setLoading}
-          loading={loading}
-        />
+    <>
+      <LoginForm
+        auth={auth}
+        otpInput={otpInput}
+        setOtpInput={setOtpInput}
+        otp={otp}
+        setOtp={setOtp}
+        counter={counter}
+        setCounter={setCounter}
+        confirmationResult={confirmationResult}
+        setConfirmationResult={setConfirmationResult}
+        userData={userData}
+        setUserData={setUserData}
+        onGoogleLogin={handleGoogleLogin}
+        setLoading={setLoading}
+        loading={loading}
+      />
       <div id="recaptcha-container" />
-      </>
+    </>
   );
 };
 
