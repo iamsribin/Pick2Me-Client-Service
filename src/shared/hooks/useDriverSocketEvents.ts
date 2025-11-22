@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import SocketService from "@/shared/services/socketService";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { rideLocationReceived } from "../services/redux/slices/rideSlice";
 import { notificationReceived } from "../services/redux/slices/notificationSlice";
+import { RootState } from "../services/redux/store";
 
 export function useDriverSocketEvents() {
   const dispatch = useDispatch();
@@ -19,11 +20,16 @@ export function useDriverSocketEvents() {
       flushTimerRef.current = null;
     }
   };
+  const user = useSelector((state: RootState) => state.user);
 
   useEffect(() => {
+
+    if(user.role !== "Driver") return;
     SocketService.connect();
 
     const offNotification = SocketService.on("notification", (data) => {
+      console.log("data of notificaito",data);
+      
       dispatch(notificationReceived(data));
     });
 
@@ -50,5 +56,5 @@ export function useDriverSocketEvents() {
       // tab to release leadership
       // socket connected at App-level; only disconnect on logout or unmount of App
     };
-  }, [dispatch]);
+  }, [dispatch,user.role]);
 }

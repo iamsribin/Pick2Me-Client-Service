@@ -1,5 +1,4 @@
 import { Routes, Route } from "react-router-dom";
-import AuthRedirect from "@/routes/public-route";
 import ProtectedRoute from "@/routes/protected-route";
 import AppRoutes from "@/constants/app-routes";
 import NotFound from "@/shared/components/NotFound";
@@ -9,7 +8,9 @@ import BookingDetails from "../pages/BookingDetails";
 import PaymentPage from "../components/ride/PaymentPage";
 import PublicRoutes from "@/routes/public-route";
 import { Suspense, lazy } from "react";
+
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
+import { useUserSocketEvents } from "@/shared/hooks/useUserSocketEvents";
 
 const UserProfile = lazy(() => import("../pages/UserProfile"));
 const LoginPage = lazy(() => import("../pages/LoginPage"));
@@ -24,6 +25,7 @@ const loaderProps = {
 };
 
 function UserRoutes() {
+  useUserSocketEvents()
   return (
     <Suspense
       fallback={

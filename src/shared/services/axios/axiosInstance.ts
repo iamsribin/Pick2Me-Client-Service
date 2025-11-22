@@ -36,6 +36,8 @@ axiosInstance.interceptors.response.use(
 
         return axiosInstance(originalRequest);
       } catch (refreshErr) {
+        console.log("logout err axious",refreshErr);
+
         await handleLogout();
         return Promise.reject(refreshErr);
       }

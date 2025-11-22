@@ -76,7 +76,7 @@ const DriverLoginForm = ({
       setLoad(true);
       try {
         const response = await postData<ResponseCom["data"]>(
-          DriverApiEndpoints.DRIVER_CHECK_LOGIN,
+          DriverApiEndpoints.CHECK_LOGIN_NUMBER,
           values
         );
         
@@ -131,7 +131,7 @@ const DriverLoginForm = ({
 
   const loginDriver = async () => {
     try {
-      const response = await postData<ResponseCom["data"]>(DriverApiEndpoints.DRIVER_CHECK_LOGIN, {
+      const response = await postData<ResponseCom["data"]>(DriverApiEndpoints.CHECK_LOGIN_NUMBER, {
         mobile: formik.values.mobile,
       });
       const data = response?.data;

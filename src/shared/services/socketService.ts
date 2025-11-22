@@ -38,6 +38,8 @@ class SocketService {
         }
         break;
       case "release-leader":
+        console.log("release leader");
+
         this.tryClaimLeader();
         break;
 
@@ -45,9 +47,8 @@ class SocketService {
         this.invokeLocalHandlers(data.event, data.payload);
         break;
 
-      // other tab wants leader to emit:
       case "emit":
-        console.log("leader emitting event", data.event);
+        console.log("leader get event to emit=", data.event);
         if (this.isLeader && this.socket?.connected) {
           this.socket.emit(data.event, data.payload);
         }
@@ -72,18 +73,25 @@ class SocketService {
   async tryClaimLeader() {
     if (!this.bc) return (this.isLeader = true);
     const jitter = Math.floor(Math.random() * 100);
+
     this.bc.postMessage({ type: "request-leader" });
+
     let answered = false;
+
     const onMsg = (ev: MessageEvent) => {
       if (ev.data?.type === "iam-leader") answered = true;
     };
+
     this.bc.addEventListener("message", onMsg);
     await new Promise((res) => setTimeout(res, 250 + jitter));
     this.bc.removeEventListener("message", onMsg);
+
     if (!answered) {
       this.isLeader = true;
+      console.log("Claimed leadership");
       this.bc.postMessage({ type: "iam-leader" });
     } else {
+      console.log("leader false");
       this.isLeader = false;
     }
   }
@@ -165,15 +173,27 @@ class SocketService {
 
     this.socket.on("connect_error", async (err: any) => {
       const msg = (err && err.message) || "";
-      if (msg.includes("token_expired") || msg.includes("no_access_token")) {
+      if (msg.includes("token_expired")) {
         try {
           await startRefresh(async () => {
             await axios.get(`${API_URL}/refresh`, { withCredentials: true });
           });
           if (this.isLeader) this.scheduleReconnect();
         } catch (refreshErr) {
+          console.log("logout err socket",refreshErr);
+          
           await handleLogout();
         }
+        return;
+      }
+
+      if(msg.includes("user_blocked")){
+        toast({
+          title:"User Blocked",
+          description:"Your account has been blocked. Please contact support for more information.",
+          variant: "error",
+        });
+        await handleLogout();
         return;
       }
 
@@ -181,12 +201,18 @@ class SocketService {
         msg.includes("no_cookies") ||
         msg.includes("user_blocked") ||
         msg.includes("invalid_token") ||
-        msg.includes("auth_error")
+        msg.includes("auth_error") 
       ) {
-        toast({ description: msg, variant: "error" });
-        await handleLogout();
+        toast({
+          title:msg,
+          description:
+            "Looks like you're not authorized. Try refreshing the page or logging in again.",
+          variant: "warning",
+        });
         return;
       }
+
+
       console.error("[SocketService] connect_error (unknown)", err);
       if (this.isLeader) this.scheduleReconnect();
     });
@@ -198,12 +224,14 @@ class SocketService {
 
     const wrapper = (payload: any) => {
       this.invokeLocalHandlers(event, payload);
-      if (this.bc) this.bc.postMessage({ type: "socket-event", event, payload });
+      if (this.bc)
+        this.bc.postMessage({ type: "socket-event", event, payload });
     };
 
     this.socket.on(event, wrapper);
 
-    (this as any).__socketWrappers = (this as any).__socketWrappers || new Map();
+    (this as any).__socketWrappers =
+      (this as any).__socketWrappers || new Map();
     (this as any).__socketWrappers.set(event, wrapper);
   }
 
@@ -220,10 +248,7 @@ class SocketService {
 
   private scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxAttempts) {
-      toast({
-        description: "Max reconnect attempts reached",
-        variant: "error",
-      });
+      console.log("Max reconnect attempts reached");
       return;
     }
     if (this.reconnectTimeout !== null) return;
@@ -243,7 +268,6 @@ class SocketService {
   /* ---------- Emit (cross-tab safe) ---------- */
 
   emit(event: string, payload: any) {
-
     if (this.socket?.connected && this.isLeader) {
       this.socket.emit(event, payload);
       return;
@@ -255,7 +279,8 @@ class SocketService {
       return;
     }
     toast({
-      description: "SocketService not connected and no BroadcastChannel to forward emit.",
+      description:
+        "SocketService not connected and no BroadcastChannel to forward emit.",
       variant: "error",
     });
   }

@@ -9,7 +9,7 @@ interface DriverProfileData {
   driverImage: string;
   address: string;
   totalRatings: number;
-  joiningDate: Date;
+  joiningDate: string;
   completedRides: number;
   cancelledRides: number;
   walletBalance: number;

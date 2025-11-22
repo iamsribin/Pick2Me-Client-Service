@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import {
   User,
@@ -10,7 +10,6 @@ import {
   Bell,
   Navigation,
   AlertCircle,
-  X,
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -20,68 +19,19 @@ import {
 import { RootState } from "@/shared/services/redux/store";
 import { useSelector } from "react-redux";
 import { handleLogout } from "@/shared/utils/auth";
+import NotificationPanel from "./NotificationPanel";
+import { useIsMobile } from "@/shared/hooks/useMobile";
 
 const DriverNavbar = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isPulsing, setIsPulsing] = useState(true);
-  const notificationRef = useRef<HTMLDivElement | null>(null);
+  const isMobileView = useIsMobile();
 
-  // const rideData = useSelector((state: RootState) => state.driverRideMap);
+  const notifications = useSelector(
+    (state: RootState) => state.notification.items
+  );
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const [notifications] = useState([
-    {
-      id: "1",
-      title: "New Ride Request",
-      message: "You have a new ride request from downtown area",
-      timestamp: "2 min ago",
-      type: "info",
-      isRead: false,
-    },
-    {
-      id: "2",
-      title: "Payment Received",
-      message: "₹450 has been credited to your wallet",
-      timestamp: "15 min ago",
-      type: "success",
-      isRead: false,
-    },
-    {
-      id: "3",
-      title: "Document Expiring",
-      message: "Your driver's license will expire in 30 days",
-      timestamp: "1 hour ago",
-      type: "warning",
-      isRead: true,
-    },
-    {
-      id: "4",
-      title: "Weekly Earnings",
-      message: "You've earned ₹12,500 this week. Great job!",
-      timestamp: "3 hours ago",
-      type: "success",
-      isRead: true,
-    },
-    {
-      id: "5",
-      title: "Rating Update",
-      message: "Your rating has improved to 4.8 stars",
-      timestamp: "5 hours ago",
-      type: "info",
-      isRead: true,
-    },
-    {
-      id: "6",
-      title: "Bonus Alert",
-      message: "Complete 5 more rides to unlock ₹500 bonus",
-      timestamp: "1 day ago",
-      type: "info",
-      isRead: true,
-    },
-  ]);
-
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
-  const displayNotifications = notifications.slice(0, 5);
-  const hasMore = notifications.length > 5;
   const rideData = {
     paymentStatus: "pending",
     isOpen: false,
@@ -101,27 +51,6 @@ const DriverNavbar = () => {
     };
   }, [rideData]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const targetNode = event.target as Node | null;
-      if (
-        notificationRef.current &&
-        targetNode &&
-        !notificationRef.current.contains(targetNode)
-      ) {
-        setIsNotificationOpen(false);
-      }
-    };
-
-    if (isNotificationOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isNotificationOpen]);
-
   const logoutHandle = () => {
     handleLogout();
   };
@@ -132,27 +61,6 @@ const DriverNavbar = () => {
 
   const handlePaymentNavigation = () => {
     console.log("Navigate to payment");
-  };
-
-  const handleNotificationClick = (notificationId: string) => {
-    console.log("Notification clicked:", notificationId);
-    setIsNotificationOpen(false);
-  };
-
-  const handleSeeAllNotifications = () => {
-    console.log("See all notifications");
-    setIsNotificationOpen(false);
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "success":
-        return "bg-[#fdb726]/20 text-[#fdb726]";
-      case "warning":
-        return "bg-[#fdb726]/30 text-[#000000]";
-      default:
-        return "bg-[#e8c58c] text-[#000000]";
-    }
   };
 
   const linkStyles = (isActive: boolean) => `
@@ -207,7 +115,7 @@ const DriverNavbar = () => {
         {/* Desktop Header with Notification */}
         <div className="hidden sm:flex justify-between items-center mb-6 pb-5 border-b-2 border-[#fdb726]/30">
           <h2 className="text-xl font-bold text-[#000000]">Driver Menu</h2>
-          <div className="relative" ref={notificationRef}>
+          <div className="relative">
             <button
               onClick={() => setIsNotificationOpen(!isNotificationOpen)}
               className="relative p-2 hover:bg-[#fdb726]/20 rounded-full transition-all duration-200 group"
@@ -220,78 +128,12 @@ const DriverNavbar = () => {
               )}
             </button>
 
-            {/* Desktop Notification Dropdown */}
-            {isNotificationOpen && (
-              <div className="absolute left-0 top-full mt-2 w-96 bg-gradient-to-b from-[#ffffff] to-[#e8c58c]/20 rounded-2xl shadow-2xl border-2 border-[#fdb726]/30 overflow-hidden z-50">
-                <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-[#fdb726] to-[#f5a623] border-b-2 border-[#000000]/10">
-                  <h3 className="font-bold text-[#000000] text-base">
-                    Notifications
-                  </h3>
-                  <button
-                    onClick={() => setIsNotificationOpen(false)}
-                    className="p-1.5 hover:bg-[#000000]/10 rounded-full transition-colors"
-                  >
-                    <X className="h-4 w-4 text-[#000000]" />
-                  </button>
-                </div>
-
-                <div className="max-h-96 overflow-y-auto">
-                  {displayNotifications.length > 0 ? (
-                    displayNotifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        onClick={() => handleNotificationClick(notification.id)}
-                        className={`px-5 py-4 border-b border-[#fdb726]/20 hover:bg-[#e8c58c]/30 cursor-pointer transition-all duration-200 ${
-                          !notification.isRead
-                            ? "bg-[#fdb726]/10 hover:bg-[#fdb726]/20"
-                            : ""
-                        }`}
-                      >
-                        <div className="flex items-start space-x-3">
-                          <div
-                            className={`p-2.5 rounded-lg ${getNotificationIcon(
-                              notification.type
-                            )} flex-shrink-0`}
-                          >
-                            <Bell className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm font-bold text-[#000000]">
-                                {notification.title}
-                              </p>
-                              {!notification.isRead && (
-                                <span className="w-2 h-2 bg-[#fdb726] rounded-full flex-shrink-0 mt-1.5" />
-                              )}
-                            </div>
-                            <p className="text-xs text-[#000000]/70 mt-1 line-clamp-2">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-[#000000]/50 mt-1.5 font-medium">
-                              {notification.timestamp}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="px-5 py-8 text-center text-[#000000]/50">
-                      <Bell className="h-12 w-12 mx-auto mb-3 text-[#000000]/30" />
-                      <p className="text-sm">No notifications yet</p>
-                    </div>
-                  )}
-                </div>
-
-                {hasMore && (
-                  <button
-                    onClick={handleSeeAllNotifications}
-                    className="w-full px-5 py-3.5 text-center text-sm font-bold text-[#000000] hover:bg-[#fdb726]/20 transition-colors border-t-2 border-[#fdb726]/30"
-                  >
-                    See All Notifications
-                  </button>
-                )}
-              </div>
-            )}
+            {/* Desktop Notification Panel */}
+            <NotificationPanel
+              isOpen={isNotificationOpen}
+              onClose={() => setIsNotificationOpen(false)}
+              isMobile={false}
+            />
           </div>
         </div>
 
@@ -407,83 +249,13 @@ const DriverNavbar = () => {
         )}
       </div>
 
-      {/* Mobile Notification Modal */}
-      {isNotificationOpen && (
-        <div
-          className="sm:hidden fixed inset-0 bg-[#000000]/70 z-40 backdrop-blur-sm"
-          onClick={() => setIsNotificationOpen(false)}
-        >
-          <div
-            className="fixed bottom-16 left-0 right-0 bg-gradient-to-b from-[#ffffff] to-[#e8c58c]/30 rounded-t-3xl shadow-2xl max-h-[80vh] overflow-hidden border-t-4 border-[#fdb726]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-[#fdb726] to-[#f5a623] border-b-2 border-[#000000]/10">
-              <h3 className="font-bold text-[#000000] text-base">
-                Notifications
-              </h3>
-              <button
-                onClick={() => setIsNotificationOpen(false)}
-                className="p-1.5 hover:bg-[#000000]/10 rounded-full transition-colors"
-              >
-                <X className="h-5 w-5 text-[#000000]" />
-              </button>
-            </div>
-
-            <div className="max-h-[60vh] overflow-y-auto">
-              {displayNotifications.length > 0 ? (
-                displayNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    onClick={() => handleNotificationClick(notification.id)}
-                    className={`px-5 py-4 border-b border-[#fdb726]/20 active:bg-[#e8c58c]/50 transition-colors ${
-                      !notification.isRead ? "bg-[#fdb726]/10" : ""
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div
-                        className={`p-2.5 rounded-lg ${getNotificationIcon(
-                          notification.type
-                        )} flex-shrink-0`}
-                      >
-                        <Bell className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-bold text-[#000000]">
-                            {notification.title}
-                          </p>
-                          {!notification.isRead && (
-                            <span className="w-2 h-2 bg-[#fdb726] rounded-full flex-shrink-0 mt-1.5" />
-                          )}
-                        </div>
-                        <p className="text-xs text-[#000000]/70 mt-1">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-[#000000]/50 mt-1.5 font-medium">
-                          {notification.timestamp}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="px-5 py-8 text-center text-[#000000]/50">
-                  <Bell className="h-12 w-12 mx-auto mb-3 text-[#000000]/30" />
-                  <p className="text-sm">No notifications yet</p>
-                </div>
-              )}
-            </div>
-
-            {hasMore && (
-              <button
-                onClick={handleSeeAllNotifications}
-                className="w-full px-5 py-3.5 text-center text-sm font-bold text-[#000000] active:bg-[#fdb726]/20 transition-colors border-t-2 border-[#fdb726]/30"
-              >
-                See All Notifications
-              </button>
-            )}
-          </div>
-        </div>
+      {/* Mobile Notification Panel */}
+      {isMobileView && (
+        <NotificationPanel
+          isOpen={isNotificationOpen}
+          onClose={() => setIsNotificationOpen(false)}
+          isMobile={true}
+        />
       )}
     </>
   );

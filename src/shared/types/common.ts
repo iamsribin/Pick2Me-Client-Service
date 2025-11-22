@@ -75,12 +75,11 @@ export interface Previews {
   driverImage: string | null;
 }
 
-// common socket event types
 export type SocketEvent =
   | { type: 'driver.location'; payload: DriverLocationMessage }
   | { type: 'ride.status'; payload: RideStatusMessage }
   | { type: 'notification'; payload: NotificationMessage }
-  | { type: string; payload: any }; // for unknown events
+  | { type: string; payload: any }; 
 
 export interface DriverLocationMessage {
   rideId: string;
@@ -102,13 +101,20 @@ export interface RideStatusMessage {
   id: string; 
 }
 
+export interface PaymentStatus {
+  status: 'ide'|'failed'|'success'|'pending';
+  updatedAt: string;
+  meta?: Record<string, any>;
+  id: string; 
+}
+
 export interface NotificationMessage {
   id: string;
-  userId: string;
+  receiverId: string;
   title: string;
   body: string;
   type: 'system'|'ride'|'payment';
-  createdAt: string;
+  date: string;
   read?: boolean;
 }
 

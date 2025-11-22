@@ -23,18 +23,19 @@ import { Badge } from "@/shared/components/ui/badge";
 import GpsFixedIcon from "@mui/icons-material/GpsFixed";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import { useDispatch, useSelector } from "react-redux";
-import { useSocket } from "@/context/socket-context";
 import { RootState } from "@/shared/services/redux/store";
-import { RideStatusData } from "@/shared/types/user/rideTypes";
-import { BackendVehicle, VehicleOption } from "./type";
-import { NotificationState, ResponseCom } from "@/shared/types/common";
-import { geocodeLatLng } from "@/shared/utils/locationToAddress";
-import { useNotification } from "@/shared/hooks/useNotificatiom";
 import { toast } from "sonner";
-import { useLoading } from "@/shared/hooks/useLoading";
+import { BackendVehicle, VehicleOption } from "./type";
+import { geocodeLatLng } from "@/shared/utils/locationToAddress";
+// import { NotificationState, ResponseCom } from "@/shared/types/common";
+// import { useNotification } from "@/shared/hooks/useNotificatiom";
+// import { useLoading } from "@/shared/hooks/useLoading";
+// import { RideStatusData } from "@/shared/types/user/rideTypes";
 import { StatusCode } from "@/shared/types/enum";
 import { fetchData, postData } from "@/shared/services/api/api-service";
 import ApiEndpoints from "@/constants/user-api-end-pointes";
+import { CommonApiEndPoint } from "@/constants/common-api-ent-point";
+import { ResponseCom } from "@/shared/types/common";
 
 const libraries: "places"[] = ["places"];
 const mapContainerStyle = {
@@ -62,11 +63,11 @@ const RideBooking: React.FC = () => {
     lat: number;
     lng: number;
   } | null>(null);
-  const [rideStatus, setRideStatus] = useState<RideStatusData | null>(null);
+  const [rideStatus, setRideStatus] = useState<any | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [directions, setDirections] =
     useState<google.maps.DirectionsResult | null>(null);
-  const { showLoading, hideLoading } = useLoading();
+  // const { showLoading, hideLoading } = useLoading();
   const [distanceInfo, setDistanceInfo] = useState<{
     distance: string;
     duration: string;
@@ -79,7 +80,7 @@ const RideBooking: React.FC = () => {
   const [showVehicleSheet, setShowVehicleSheet] = useState<boolean>(false);
   const [driverDirections, setDriverDirections] =
     useState<google.maps.DirectionsResult | null>(null);
-  const [notification, setNotification] = useState<NotificationState>({
+  const [notification, setNotification] = useState<any>({
     open: false,
     type: "info",
     title: "",
@@ -90,15 +91,15 @@ const RideBooking: React.FC = () => {
   const navigate = useNavigate();
   const originRef = useRef<HTMLInputElement>(null);
   const destinationRef = useRef<HTMLInputElement>(null);
-  const { socket, isConnected } = useSocket();
+  // const { socket, isConnected } = useSocket();
   const { user } = useSelector((state: RootState) => ({
     user: state.user,
   }));
-    const { paymentStatus, rideData } = useSelector(
-      (state: RootState) => state.RideMap
-    );
+    // const { paymentStatus, rideData } = useSelector(
+    //   (state: RootState) => state.RideMap
+    // );
 
-  const { onNotification, offNotification } = useNotification();
+  // const { onNotification, offNotification } = useNotification();
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
@@ -121,7 +122,7 @@ const RideBooking: React.FC = () => {
           }
         },
         (error) => {
-          onNotification("error", "Unable to get your current location");
+          // onNotification("error", "Unable to get your current location");
         }
       );
     };
@@ -129,14 +130,14 @@ const RideBooking: React.FC = () => {
     getUserLocation();
 
     return () => {
-      if (socket && isConnected) {
-        socket.off("rideStatus");
-        socket.off("error");
-      }
+      // if (socket && isConnected) {
+      //   socket.off("rideStatus");
+      //   socket.off("error");
+      // }
     };
   }, [
-    socket,
-    isConnected,
+    // socket,
+    // isConnected,
     dispatch,
     navigate,
     useCurrentLocationAsPickup,
@@ -156,10 +157,10 @@ const RideBooking: React.FC = () => {
   const fetchVehicles = async (distanceInKm: number) => {
     try {
       const data = await fetchData<BackendVehicle[]>(
-        ApiEndpoints.ADMIN_VEHICLE_MODELS,
+        CommonApiEndPoint.VEHICLE_MODELS,
       );
 
-      const fetchedVehicles: VehicleOption[] = data.map((vehicle) => ({
+      const fetchedVehicles: any[] = data?.data.map((vehicle) => ({
         id: vehicle.vehicleModel.toLowerCase(),
         name: vehicle.vehicleModel,
         image: vehicle.image,
@@ -183,10 +184,10 @@ const RideBooking: React.FC = () => {
 
   const fetchRoute = async () => {
     if (!origin || !destination || !userLocation) {
-      onNotification(
-        "error",
-        "Please enter valid pickup and dropoff locations"
-      );
+      // onNotification(
+      //   "error",
+      //   "Please enter valid pickup and dropoff locations"
+      // );
       return;
     }
 
@@ -227,16 +228,16 @@ const RideBooking: React.FC = () => {
   };
 
   const handleSearchCabs = async () => {
-    if(rideData){
-     onNotification("alert", "You're already on a ride. Finish it before booking another.");
-      return;
-    }
+    // if(rideData){
+    //  onNotification("alert", "You're already on a ride. Finish it before booking another.");
+    //   return;
+    // }
     if (
       !destination ||
       (useCurrentLocationAsPickup && !userLocation) ||
       (!useCurrentLocationAsPickup && !origin)
     ) {
-      onNotification("error", "Please enter required location details");
+      // onNotification("error", "Please enter required location details");
       return;
     }
     await fetchRoute();
@@ -256,15 +257,15 @@ const RideBooking: React.FC = () => {
     setIsSearching(true);
 
     try {
-      if (!socket || !isConnected) {
-        throw new Error("Socket not connected");
-      }
-      showLoading({
-        isLoading: true,
-        loadingMessage: "Searching nearby Drivers",
-        loadingType: "ride-search",
-        progress: 30,
-      });
+      // if (!socket || !isConnected) {
+      //   throw new Error("Socket not connected");
+      // }
+      // showLoading({
+      //   isLoading: true,
+      //   loadingMessage: "Searching nearby Drivers",
+      //   loadingType: "ride-search",
+      //   progress: 30,
+      // });
 
       const pickupLat =
         directions?.routes[0]?.legs[0]?.start_location?.lat() ??
@@ -319,7 +320,6 @@ const RideBooking: React.FC = () => {
 
       const data = await postData<ResponseCom["data"]>(
         ApiEndpoints.BOOK_MY_CAB,
-        "User",
         bookingData
       );
 
@@ -328,12 +328,12 @@ const RideBooking: React.FC = () => {
       setIsSearching(false);
       setShowVehicleSheet(false);
       if (data.status == StatusCode.Created) {
-        showLoading({
-          isLoading: true,
-          loadingMessage: "Searching nearby Drivers",
-          loadingType: "ride-search",
-          progress: 60,
-        });
+        // showLoading({
+        //   isLoading: true,
+        //   loadingMessage: "Searching nearby Drivers",
+        //   loadingType: "ride-search",
+        //   progress: 60,
+        // });
       }
     } catch (error) {
       console.log("booking error", error);
@@ -344,7 +344,7 @@ const RideBooking: React.FC = () => {
         title: "Booking Error",
         message: "Failed to send ride request. Please try again.",
       });
-      hideLoading();
+      // hideLoading();
       setIsSearching(false);
       handleClear();
     }

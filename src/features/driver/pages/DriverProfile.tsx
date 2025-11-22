@@ -50,7 +50,6 @@ import { handleCustomError } from "@/shared/utils/error";
 import { toast } from "@/shared/hooks/use-toast";
 import { userLogout } from "@/shared/services/redux/slices/userSlice";
 import axios from "axios";
-import { formatCurrency, formatDate } from "@/shared/utils/format";
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
 
 interface EditValues {
@@ -431,7 +430,7 @@ const DriverProfile: React.FC = () => {
                       Joined
                     </p>
                     <p className="text-base font-bold text-[#000000]">
-                      {formatDate(driverData.joiningDate)}
+                      {driverData.joiningDate}
                     </p>
                   </div>
                 </div>
@@ -501,7 +500,7 @@ const DriverProfile: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-4xl font-bold text-[#000000] mb-6">
-                  ₹{formatCurrency(driverData.walletBalance)}
+                  ₹{driverData.walletBalance.toFixed(2)}
                 </div>
                 <Button className="w-full bg-[#000000] hover:bg-[#000000]/90 text-[#ffffff] font-bold py-6 text-base rounded-full shadow-xl">
                   View Transaction History

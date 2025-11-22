@@ -19,6 +19,7 @@ const isAbortError = (err: any): boolean => {
 
 export const throwCustomError = (err: any): never => {
   if (isAbortError(err)) throw err;
+console.log("ppppppp",err);
 
   if (err?.response) {
     const { status, data } = err.response;

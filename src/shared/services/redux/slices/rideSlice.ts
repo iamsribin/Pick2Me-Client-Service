@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { DriverLocationMessage, RideStatusMessage } from '@/shared/types/common';
+import type { DriverLocationMessage, PaymentStatus, RideStatusMessage } from '@/shared/types/common';
 
 type PositionsMap = Record<string, DriverLocationMessage[]>; // rideId -> positions
 
@@ -11,6 +11,7 @@ const slice = createSlice({
     latest: {} as Record<string, DriverLocationMessage | undefined>,
     positions: {} as PositionsMap,
     status: {} as Record<string, RideStatusMessage | undefined>,
+    paymentStatus: {} as Record<string, PaymentStatus| undefined>
   },
   reducers: {
     rideLocationReceived(state, action: PayloadAction<DriverLocationMessage>) {
@@ -18,10 +19,8 @@ const slice = createSlice({
       const arr = state.positions[p.rideId] ?? [];
       const last = arr[arr.length - 1];
 
-      // dedupe by id
       if (p.id && arr.some(a => a.id === p.id)) return;
 
-      // out-of-order protection using seq or ts
       if (last && p.seq !== undefined && last.seq !== undefined && p.seq <= last.seq) {
         return;
       }
@@ -34,7 +33,6 @@ const slice = createSlice({
     rideStatusReceived(state, action: PayloadAction<RideStatusMessage>) {
       const s = action.payload;
       const current = state.status[s.rideId];
-      // basic guard for stale updates using updatedAt
       if (current && current.updatedAt > s.updatedAt) return;
       state.status[s.rideId] = s;
     },
