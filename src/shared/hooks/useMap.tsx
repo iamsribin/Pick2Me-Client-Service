@@ -36,7 +36,6 @@ const useMap = (rideData: RideRequest | null) => {
       toast.error("Mapbox access token is missing.");
       return;
     }
-console.log("driverLocation",driverLocation);
 
     if (!driverLocation) {
       toast.error("Driver location loading...");

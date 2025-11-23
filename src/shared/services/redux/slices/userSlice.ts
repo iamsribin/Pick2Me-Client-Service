@@ -7,7 +7,6 @@ interface UserState {
   loggedIn: boolean;
   role: Role | null;
   isOnline: boolean;
-  OnlineTimestamp: Date | null
 }
 
 const initialState: UserState = {
@@ -16,7 +15,6 @@ const initialState: UserState = {
   loggedIn: false,
   role: null,
   isOnline:false,
-  OnlineTimestamp:null,
 };
 
 const userSlice = createSlice({
@@ -50,7 +48,6 @@ const userSlice = createSlice({
   }>
 ) => {
   state.isOnline = action.payload.onlineStatus;
-  state.OnlineTimestamp = action.payload.onlineStatus ? new Date() : null;
 }
   },
 });

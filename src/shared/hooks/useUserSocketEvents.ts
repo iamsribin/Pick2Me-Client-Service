@@ -3,6 +3,7 @@ import SocketService from "@/shared/services/socketService";
 import { useDispatch } from "react-redux";
 import { rideLocationReceived } from "../services/redux/slices/rideSlice";
 import { notificationReceived } from "../services/redux/slices/notificationSlice";
+import { toast } from "./use-toast";
 
 export function useUserSocketEvents() {
   const dispatch = useDispatch();
@@ -27,6 +28,10 @@ export function useUserSocketEvents() {
       dispatch(notificationReceived(data));
     });
 
+    const offError = SocketService.on("error", (data) => {
+      toast({ description: data.message, variant: "error" });
+    });
+
     const offHai = SocketService.on("hai", (data) => {
       console.log("hai", data);
     });
@@ -42,6 +47,7 @@ export function useUserSocketEvents() {
       offNotification();
       offDriverLocation();
       offHai();
+      offError();
       if (flushTimerRef.current) {
         window.clearTimeout(flushTimerRef.current);
         flushTimerRef.current = null;

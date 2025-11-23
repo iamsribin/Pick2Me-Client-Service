@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { rideLocationReceived } from "../services/redux/slices/rideSlice";
 import { notificationReceived } from "../services/redux/slices/notificationSlice";
 import { RootState } from "../services/redux/store";
+import { toast } from "./use-toast";
 
 export function useDriverSocketEvents() {
   const dispatch = useDispatch();
@@ -23,14 +24,17 @@ export function useDriverSocketEvents() {
   const user = useSelector((state: RootState) => state.user);
 
   useEffect(() => {
-
-    if(user.role !== "Driver") return;
+    if (user.role !== "Driver") return;
     SocketService.connect();
 
     const offNotification = SocketService.on("notification", (data) => {
-      console.log("data of notificaito",data);
-      
+      console.log("data of notificaito", data);
+
       dispatch(notificationReceived(data));
+    });
+
+    const offError = SocketService.on("error", (data) => {
+      toast({ description: data.message, variant: "error" });
     });
 
     const offHai = SocketService.on("hai", (data) => {
@@ -48,6 +52,7 @@ export function useDriverSocketEvents() {
       offNotification();
       offDriverLocation();
       offHai();
+      offError();
       if (flushTimerRef.current) {
         window.clearTimeout(flushTimerRef.current);
         flushTimerRef.current = null;
@@ -56,5 +61,5 @@ export function useDriverSocketEvents() {
       // tab to release leadership
       // socket connected at App-level; only disconnect on logout or unmount of App
     };
-  }, [dispatch,user.role]);
+  }, [dispatch, user.role]);
 }

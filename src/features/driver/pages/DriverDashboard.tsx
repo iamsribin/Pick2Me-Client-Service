@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Switch } from "@/shared/components/ui/switch";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
@@ -10,17 +10,16 @@ import {
   Navigation2OffIcon,
 } from "lucide-react";
 import DriverNavbar from "../components/DriverNavbar";
-import { RootState, store } from "@/shared/services/redux/store";
+import { RootState } from "@/shared/services/redux/store";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "@/shared/hooks/use-toast";
-import { emitSocket } from "@/shared/utils/emitSocket";
 import { postData, fetchData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
-import { useLocationTracking } from "@/shared/hooks/useLocationTracking";
 import { ResponseCom } from "@/shared/types/common";
 import { handleCustomError } from "@/shared/utils/error";
 import { getCurrentLocation } from "@/shared/utils/getCurrentLocation";
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
+import { setOnline } from "@/shared/services/redux/slices/userSlice";
 
 interface DashboardStats {
   todayEarnings: number;
@@ -33,8 +32,8 @@ interface DashboardStats {
 const DriverDashboard = () => {
   const dispatch = useDispatch();
   const isInRide = useSelector((state: RootState) => state.RideData);
+  const online = useSelector((state: RootState) => state.user.isOnline);
 
-  const [online, setOnline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     todayEarnings: 0,
@@ -44,32 +43,18 @@ const DriverDashboard = () => {
     isOnline: false,
   });
 
-  const { lastLocation } = useLocationTracking({
-    isTracking: online,
-    updateIntervalMs: 10000,
-  });
-
   useEffect(() => {
     fetchDashboardStats();
   }, []);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     try {
       setLoading(true);
-      // const response = {
-      //   data: {
-      //     todayEarnings: 89,
-      //     completedRides: 9,
-      //     onlineHours: "9h",
-      //     rating: 9,
-      //     isOnline: false,
-      //   },
-      // };
       const response = await fetchData<ResponseCom["data"]>(
         DriverApiEndpoints.MAIN_DASHBOARD
       );
       const data = response?.data;
-      console.log("response", data);
+      console.log(data);
 
       if (response?.status == 200 && data) {
         setStats({
@@ -79,7 +64,8 @@ const DriverDashboard = () => {
           canceledRides: data.canceledRides || 0,
           isOnline: data.isOnline || false,
         });
-        setOnline(data.isOnline || false);
+
+        dispatch(setOnline({ onlineStatus: data.isOnline || false }));
       }
     } catch (error) {
       console.error("Failed to fetch dashboard stats:", error);
@@ -87,12 +73,10 @@ const DriverDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dispatch]);
 
   const handleOnlineChange = useCallback(
     async (checked: boolean) => {
-      console.log("=====", isInRide);
-
       if (Object.keys(isInRide.status).length !== 0) {
         toast({
           description: "You can't go offline while you're on a ride.",
@@ -102,6 +86,7 @@ const DriverDashboard = () => {
       }
 
       try {
+        setLoading(true);
         let location = { latitude: 0, longitude: 0 };
 
         if (checked) {
@@ -116,20 +101,13 @@ const DriverDashboard = () => {
           }
         }
 
-        const response = await postData(DriverApiEndpoints.ONLINE_STATUS, {
+        await postData(DriverApiEndpoints.ONLINE_STATUS, {
           online: checked,
           latitude: location.latitude,
           longitude: location.longitude,
         });
 
-        setOnline(checked);
-
-        dispatch(
-          emitSocket(checked ? "driver:online" : "driver:offline", {
-            online: checked,
-            timestamp: Date.now(),
-          })
-        );
+        dispatch(setOnline({ onlineStatus: checked }));
 
         if (!checked) {
           await fetchDashboardStats();
@@ -145,71 +123,18 @@ const DriverDashboard = () => {
         console.error("Failed to update online status:", error);
 
         handleCustomError(error);
+      } finally {
+        setLoading(false);
       }
     },
-    [isInRide]
+    [isInRide, dispatch, fetchDashboardStats]
   );
-
-  // Handle browser close/refresh - go offline if online
-  useEffect(() => {
-    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
-      if (online && !isInRide) {
-        // Use sendBeacon for reliable delivery during page unload
-        const data = JSON.stringify({
-          online: false,
-          latitude: 0,
-          longitude: 0,
-        });
-
-        navigator.sendBeacon(
-          `${process.env.REACT_APP_API_URL}${DriverApiEndpoints.ONLINE_STATUS}`,
-          data
-        );
-
-        // Also emit socket event
-        store.dispatch(
-          emitSocket("driver:offline", {
-            online: false,
-            timestamp: Date.now(),
-            reason: "browser_close",
-          })
-        );
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      console.log("undpaj");
-      
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [online, isInRide]);
-
-  // Heartbeat to keep driver online status fresh
-  useEffect(() => {
-    if (!online) return;
-
-    const heartbeatInterval = setInterval(() => {
-      store.dispatch(
-        emitSocket("driver:heartbeat", {
-          timestamp: Date.now(),
-          location: lastLocation,
-        })
-      );
-    }, 60000); // Every 60 seconds
-
-    return () => clearInterval(heartbeatInterval);
-  }, [online, lastLocation]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#e8c58c] via-[#f5e5c8] to-[#ffffff] pb-20 sm:pb-4 sm:pl-64">
         <DriverNavbar />
-        <GlobalLoading
-        isLoading={loading}
-        loadingMessage="loading documents"
-      />
+        <GlobalLoading isLoading={loading} loadingMessage="loading documents" />
       </div>
     );
   }
