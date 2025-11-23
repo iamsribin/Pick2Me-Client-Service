@@ -8,8 +8,9 @@ import DriverNavbar from "../components/DriverNavbar";
 import { RootState, store } from "@/shared/services/redux/store";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "@/shared/hooks/use-toast";
-import { socketMiddleware } from "@/shared/middlewares/socketMiddleware";
 import { emitSocket } from "@/shared/utils/emitSocket";
+import { postData } from "@/shared/services/api/api-service";
+import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
 
 const DriverDashboard = () => {
   const dispatch = useDispatch();
@@ -17,8 +18,8 @@ const DriverDashboard = () => {
   // const driverId = useSelector((state) => state.user.id);
   // const isOnline = useSelector((state) => state.user.isOnline);
   // const rideData = useSelector((state: RootState) => state.driverRideMap);
-  // const isOpen = useSelector((state: RootState) => state.driverRideMap.isOpen);;
-  const isOpen = false;
+  const isOpen = useSelector((state: RootState) => state.RideData);
+
   const [online, setOnline] = React.useState(false);
 
   const handleOnlineChange = useCallback(async (checked:boolean) => {
@@ -34,6 +35,7 @@ const DriverDashboard = () => {
         async (position) => {
           const { latitude, longitude } = position.coords;
           console.log("Location:", latitude, longitude);
+          postData(DriverApiEndpoints.ONLINE_STATUS,{ latitude, longitude });
           setOnline(checked);
         },
         (error) => {
