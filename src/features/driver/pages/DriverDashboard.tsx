@@ -1,57 +1,224 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Switch } from "@/shared/components/ui/switch";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
-import { CircleDollarSign, Clock, Navigation2, Star } from "lucide-react";
+import {
+  CircleDollarSign,
+  Clock,
+  Navigation2,
+  Navigation2OffIcon,
+} from "lucide-react";
 import DriverNavbar from "../components/DriverNavbar";
 import { RootState, store } from "@/shared/services/redux/store";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "@/shared/hooks/use-toast";
 import { emitSocket } from "@/shared/utils/emitSocket";
-import { postData } from "@/shared/services/api/api-service";
+import { postData, fetchData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
+import { useLocationTracking } from "@/shared/hooks/useLocationTracking";
+import { ResponseCom } from "@/shared/types/common";
+import { handleCustomError } from "@/shared/utils/error";
+import { getCurrentLocation } from "@/shared/utils/getCurrentLocation";
+import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
+
+interface DashboardStats {
+  todayEarnings: number;
+  completedRides: number;
+  onlineHours: string;
+  canceledRides: number;
+  isOnline: boolean;
+}
 
 const DriverDashboard = () => {
   const dispatch = useDispatch();
-  
-  // const driverId = useSelector((state) => state.user.id);
-  // const isOnline = useSelector((state) => state.user.isOnline);
-  // const rideData = useSelector((state: RootState) => state.driverRideMap);
-  const isOpen = useSelector((state: RootState) => state.RideData);
+  const isInRide = useSelector((state: RootState) => state.RideData);
 
-  const [online, setOnline] = React.useState(false);
+  const [online, setOnline] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    todayEarnings: 0,
+    completedRides: 0,
+    onlineHours: "0h",
+    canceledRides: 0,
+    isOnline: false,
+  });
 
-  const handleOnlineChange = useCallback(async (checked:boolean) => {
-    if (isOpen) {
-      toast({description: "You can't go offline while you're on a ride.", variant: "error"});
-      return;
-    }
+  const { lastLocation } = useLocationTracking({
+    isTracking: online,
+    updateIntervalMs: 10000,
+  });
 
-    store.dispatch(emitSocket("hello",{msg:"Hello from client"}));
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          console.log("Location:", latitude, longitude);
-          postData(DriverApiEndpoints.ONLINE_STATUS,{ latitude, longitude });
-          setOnline(checked);
-        },
-        (error) => {
-          toast({description: "Please enable location access", variant: "error"});
-        }
-      );
-    } else {
-      toast({description: "Geolocation is not supported by your browser", variant: "error"});
-    }
+  useEffect(() => {
+    fetchDashboardStats();
   }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true);
+      // const response = {
+      //   data: {
+      //     todayEarnings: 89,
+      //     completedRides: 9,
+      //     onlineHours: "9h",
+      //     rating: 9,
+      //     isOnline: false,
+      //   },
+      // };
+      const response = await fetchData<ResponseCom["data"]>(
+        DriverApiEndpoints.MAIN_DASHBOARD
+      );
+      const data = response?.data;
+      console.log("response", data);
+
+      if (response?.status == 200 && data) {
+        setStats({
+          todayEarnings: data.todayEarnings || 0,
+          completedRides: data.completedRides || 0,
+          onlineHours: data.onlineHours || "0h",
+          canceledRides: data.canceledRides || 0,
+          isOnline: data.isOnline || false,
+        });
+        setOnline(data.isOnline || false);
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard stats:", error);
+      handleCustomError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOnlineChange = useCallback(
+    async (checked: boolean) => {
+      console.log("=====", isInRide);
+
+      if (Object.keys(isInRide.status).length !== 0) {
+        toast({
+          description: "You can't go offline while you're on a ride.",
+          variant: "error",
+        });
+        return;
+      }
+
+      try {
+        let location = { latitude: 0, longitude: 0 };
+
+        if (checked) {
+          try {
+            location = await getCurrentLocation();
+          } catch (error) {
+            toast({
+              description: "Please enable location access to go online",
+              variant: "error",
+            });
+            return;
+          }
+        }
+
+        const response = await postData(DriverApiEndpoints.ONLINE_STATUS, {
+          online: checked,
+          latitude: location.latitude,
+          longitude: location.longitude,
+        });
+
+        setOnline(checked);
+
+        dispatch(
+          emitSocket(checked ? "driver:online" : "driver:offline", {
+            online: checked,
+            timestamp: Date.now(),
+          })
+        );
+
+        if (!checked) {
+          await fetchDashboardStats();
+        }
+
+        toast({
+          description: checked
+            ? "You are now online and receiving ride requests"
+            : "You are now offline",
+          variant: "success",
+        });
+      } catch (error: any) {
+        console.error("Failed to update online status:", error);
+
+        handleCustomError(error);
+      }
+    },
+    [isInRide]
+  );
+
+  // Handle browser close/refresh - go offline if online
+  useEffect(() => {
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      if (online && !isInRide) {
+        // Use sendBeacon for reliable delivery during page unload
+        const data = JSON.stringify({
+          online: false,
+          latitude: 0,
+          longitude: 0,
+        });
+
+        navigator.sendBeacon(
+          `${process.env.REACT_APP_API_URL}${DriverApiEndpoints.ONLINE_STATUS}`,
+          data
+        );
+
+        // Also emit socket event
+        store.dispatch(
+          emitSocket("driver:offline", {
+            online: false,
+            timestamp: Date.now(),
+            reason: "browser_close",
+          })
+        );
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      console.log("undpaj");
+      
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [online, isInRide]);
+
+  // Heartbeat to keep driver online status fresh
+  useEffect(() => {
+    if (!online) return;
+
+    const heartbeatInterval = setInterval(() => {
+      store.dispatch(
+        emitSocket("driver:heartbeat", {
+          timestamp: Date.now(),
+          location: lastLocation,
+        })
+      );
+    }, 60000); // Every 60 seconds
+
+    return () => clearInterval(heartbeatInterval);
+  }, [online, lastLocation]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#e8c58c] via-[#f5e5c8] to-[#ffffff] pb-20 sm:pb-4 sm:pl-64">
+        <DriverNavbar />
+        <GlobalLoading
+        isLoading={loading}
+        loadingMessage="loading documents"
+      />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#e8c58c] via-[#f5e5c8] to-[#ffffff] flex flex-col">
-      <DriverNavbar/>
+      <DriverNavbar />
       <div className="h-16 sm:h-0"></div>
-      
+
       <div className="flex-1 p-4 sm:p-6 md:p-8 ml-0 sm:ml-64">
         {/* Header Card */}
         <div className="bg-gradient-to-r from-[#fdb726] to-[#f5a623] shadow-2xl rounded-2xl mb-6 border-2 border-[#fdb726]/30">
@@ -60,7 +227,9 @@ const DriverDashboard = () => {
               <h1 className="text-2xl sm:text-3xl font-bold text-[#000000] drop-shadow-sm">
                 Driver Dashboard
               </h1>
-              <p className="mt-2 text-sm text-[#000000]/80 font-medium">Welcome back, Driver</p>
+              <p className="mt-2 text-sm text-[#000000]/80 font-medium">
+                Welcome back, Driver
+              </p>
             </div>
             <div className="flex items-center gap-4 bg-[#ffffff]/90 px-6 py-3 rounded-full shadow-lg border-2 border-[#000000]/10">
               <span
@@ -88,7 +257,9 @@ const DriverDashboard = () => {
                   <p className="text-sm font-semibold text-[#000000]/70 uppercase tracking-wide">
                     Today's Earnings
                   </p>
-                  <h3 className="text-3xl font-bold mt-2 text-[#fdb726]">₹2,450</h3>
+                  <h3 className="text-3xl font-bold mt-2 text-[#fdb726]">
+                    ₹{stats.todayEarnings.toLocaleString()}
+                  </h3>
                 </div>
                 <div className="h-14 w-14 bg-gradient-to-br from-[#fdb726] to-[#f5a623] rounded-2xl flex items-center justify-center shadow-lg">
                   <CircleDollarSign className="h-7 w-7 text-[#ffffff]" />
@@ -104,10 +275,29 @@ const DriverDashboard = () => {
                   <p className="text-sm font-semibold text-[#000000]/70 uppercase tracking-wide">
                     Completed Rides
                   </p>
-                  <h3 className="text-3xl font-bold mt-2 text-[#fdb726]">8</h3>
+                  <h3 className="text-3xl font-bold mt-2 text-[#fdb726]">
+                    {stats.completedRides}
+                  </h3>
                 </div>
                 <div className="h-14 w-14 bg-gradient-to-br from-[#fdb726] to-[#f5a623] rounded-2xl flex items-center justify-center shadow-lg">
                   <Navigation2 className="h-7 w-7 text-[#ffffff]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-[#ffffff] to-[#e8c58c]/30 border-2 border-[#fdb726]/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-[#000000]/70 uppercase tracking-wide">
+                    Canceled Rides
+                  </p>
+                  <h3 className="text-3xl font-bold mt-2 text-[#fdb726]">
+                    {stats.canceledRides}
+                  </h3>
+                </div>
+                <div className="h-14 w-14 bg-gradient-to-br from-[#fdb726] to-[#f5a623] rounded-2xl flex items-center justify-center shadow-lg">
+                  <Navigation2OffIcon className="h-7 w-7 text-[#ffffff]" />
                 </div>
               </div>
             </CardContent>
@@ -120,7 +310,9 @@ const DriverDashboard = () => {
                   <p className="text-sm font-semibold text-[#000000]/70 uppercase tracking-wide">
                     Online Hours
                   </p>
-                  <h3 className="text-3xl font-bold mt-2 text-[#fdb726]">6.5h</h3>
+                  <h3 className="text-3xl font-bold mt-2 text-[#fdb726]">
+                    {stats.onlineHours}
+                  </h3>
                 </div>
                 <div className="h-14 w-14 bg-gradient-to-br from-[#fdb726] to-[#f5a623] rounded-2xl flex items-center justify-center shadow-lg">
                   <Clock className="h-7 w-7 text-[#ffffff]" />
@@ -128,26 +320,10 @@ const DriverDashboard = () => {
               </div>
             </CardContent>
           </Card>
-
-          <Card className="bg-gradient-to-br from-[#ffffff] to-[#e8c58c]/30 border-2 border-[#fdb726]/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-[#000000]/70 uppercase tracking-wide">
-                    Rating
-                  </p>
-                  <h3 className="text-3xl font-bold mt-2 text-[#fdb726]">4.8</h3>
-                </div>
-                <div className="h-14 w-14 bg-gradient-to-br from-[#fdb726] to-[#f5a623] rounded-2xl flex items-center justify-center shadow-lg">
-                  <Star className="h-7 w-7 text-[#ffffff]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Status Cards */}
-        {!isOpen && online && (
+        {!isInRide && online && (
           <Card className="mb-6 bg-gradient-to-br from-[#fdb726] to-[#f5a623] border-2 border-[#000000]/10 shadow-2xl">
             <CardContent className="py-12 text-center">
               <Badge
@@ -166,11 +342,11 @@ const DriverDashboard = () => {
           </Card>
         )}
 
-        {!isOpen && !online && (
+        {!isInRide && !online && (
           <Card className="mb-6 bg-gradient-to-br from-[#ffffff] to-[#e8c58c]/50 border-2 border-[#000000]/10 shadow-2xl">
             <CardContent className="py-12 text-center">
-              <Badge 
-                variant="secondary" 
+              <Badge
+                variant="secondary"
                 className="mb-4 bg-[#000000]/10 text-[#000000] px-6 py-2 text-base font-bold"
               >
                 OFFLINE

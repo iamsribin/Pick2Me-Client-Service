@@ -18,7 +18,7 @@ interface LocationUpdate {
 
 export const useLocationTracking = ({
   isTracking,
-  updateIntervalMs = 10000, // Default: 10 seconds
+  updateIntervalMs = 10000,
   highAccuracy = true,
 }: LocationTrackingOptions) => {
   const dispatch = useDispatch();
@@ -54,7 +54,6 @@ export const useLocationTracking = ({
         }
       }
 
-      // Send location update via socket
       dispatch(
         emitSocket('driver:location:update', {
           latitude: location.latitude,
@@ -70,7 +69,6 @@ export const useLocationTracking = ({
     [dispatch, updateIntervalMs]
   );
 
-  // Start tracking
   const startTracking = useCallback(() => {
     if (!navigator.geolocation) {
       toast({
@@ -131,7 +129,6 @@ export const useLocationTracking = ({
     }
   }, [highAccuracy, sendLocationUpdate]);
 
-  // Stop tracking
   const stopTracking = useCallback(() => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -141,7 +138,6 @@ export const useLocationTracking = ({
     }
   }, []);
 
-  // Handle tracking state changes
   useEffect(() => {
     if (isTracking) {
       startTracking();
@@ -149,7 +145,6 @@ export const useLocationTracking = ({
       stopTracking();
     }
 
-    // Cleanup on unmount
     return () => {
       stopTracking();
     };

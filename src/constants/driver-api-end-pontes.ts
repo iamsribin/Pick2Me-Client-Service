@@ -22,7 +22,7 @@ enum DriverApiEndpoints {
   ONLINE_STATUS = "/drivers/me/online-status",
   MY_TRIPS = `/drivers/me/trips`,
   CHECK_SECURITY_PIN = "/drivers/check-security-pin",
-  DASHBOARD = "/drivers/me/dashboard",
+  MAIN_DASHBOARD = "/drivers/me/main-dashboard",
   TRIP_DETAILS = "/drivers/me/trip-details",
 }
 
