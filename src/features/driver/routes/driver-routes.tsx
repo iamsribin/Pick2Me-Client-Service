@@ -6,6 +6,7 @@ import AppRoutes from "@/constants/app-routes";
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
 import { useDriverSocketEvents } from "@/shared/hooks/useDriverSocketEvents";
 import { LocationProvider } from "@/context/locationProvider";
+import DriverWallet from "../pages/WallerPage";
 
 const DriverLoginPage = lazy(() => import("../pages/auth/DriverLoginPage"));
 const DriverSignupPage = lazy(() => import("../pages/auth/DriverSignupPage"));
@@ -35,6 +36,7 @@ function DriverRoutes() {
               <Route path={AppRoutes.DASHBOARD} element={<Dashboard />} />
               <Route path={AppRoutes.PROFILE} element={<DriverProfile />} />
               <Route path={AppRoutes.DOCUMENTS} element={<DriverDocuments />} />
+              <Route path={AppRoutes.WALLET} element={<DriverWallet />} />
             </Route>
 
             <Route element={<PublicRoute allowedRoles={["Driver"]} />}>

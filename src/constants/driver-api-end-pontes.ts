@@ -24,6 +24,8 @@ enum DriverApiEndpoints {
   CHECK_SECURITY_PIN = "/drivers/check-security-pin",
   MAIN_DASHBOARD = "/drivers/me/main-dashboard",
   TRIP_DETAILS = "/drivers/me/trip-details",
+  WALLET= "/payments/drivers/me/wallet",
+  REFRESH_ONBOARDING= "/payments/drivers/me/wallet/refresh-onboarding",
 }
 
 export default DriverApiEndpoints;

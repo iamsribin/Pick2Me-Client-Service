@@ -13,6 +13,7 @@ enum AppRoutes {
     DRIVER_RESUBMISSION = 'resubmission',
     TRIPS = "trips",
     DOCUMENTS = "documents",
+    WALLET = "wallet",
     GET_MY_TRIP_DETAILS = "me/trips",
 
     // Driver Routes

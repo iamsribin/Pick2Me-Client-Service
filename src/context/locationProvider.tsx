@@ -137,7 +137,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     };
 
     try {
-      // ensure we mark tracking true for manual starts
       isTrackingRef.current = true;
       watchIdRef.current = navigator.geolocation.watchPosition(successHandler, errorHandler, options);
       return true;

@@ -53,6 +53,9 @@ const DriverDashboard = () => {
       const response = await fetchData<ResponseCom["data"]>(
         DriverApiEndpoints.MAIN_DASHBOARD
       );
+      // await fetchData<ResponseCom["data"]>(
+      //   DriverApiEndpoints.STRIPE_ONBOARD
+      // );
       const data = response?.data;
       console.log(data);
 
@@ -142,7 +145,7 @@ const DriverDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#e8c58c] via-[#f5e5c8] to-[#ffffff] flex flex-col">
       <DriverNavbar />
-      <div className="h-16 sm:h-0"></div>
+      {/* <div className="h-16 sm:h-0"></div> */}
 
       <div className="flex-1 p-4 sm:p-6 md:p-8 ml-0 sm:ml-64">
         {/* Header Card */}
