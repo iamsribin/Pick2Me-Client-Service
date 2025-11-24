@@ -2,9 +2,17 @@ import React, { useRef, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Bell, X, Trash2, CheckCheck, Check } from "lucide-react";
 import { RootState } from "@/shared/services/redux/store";
-import { markRead, clearNotification, clearAllNotifications, markAllAsRead } from "@/shared/services/redux/slices/notificationSlice";
-import { notificationApi } from "./notificationApi";
+import {
+  markRead,
+  clearNotification,
+  clearAllNotifications,
+  markAllAsRead,
+} from "@/shared/services/redux/slices/notificationSlice";
 import { formatTimestamp } from "@/shared/utils/format";
+import { deleteData, patchData } from "@/shared/services/api/api-service";
+import { CommonApiEndPoint } from "@/constants/common-api-ent-point";
+import { toast } from "@/shared/hooks/use-toast";
+import { handleCustomError } from "@/shared/utils/error";
 
 interface NotificationPanelProps {
   isOpen: boolean;
@@ -19,10 +27,12 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
 }) => {
   const dispatch = useDispatch();
   const notificationRef = useRef<HTMLDivElement | null>(null);
-  const notifications = useSelector((state: RootState) => state.notification.items);
+  const notifications = useSelector(
+    (state: RootState) => state.notification.items
+  );
 
   const unreadNotifications = notifications.filter((n) => !n.read);
- 
+
   const displayNotifications = notifications;
   const hasMore = false;
 
@@ -50,46 +60,52 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      const response = await notificationApi.markAsRead(notificationId);
-      if (response.status === 200) {
+      const response = await patchData(
+        CommonApiEndPoint.MARK_AS_READ.replace(":id", notificationId)
+      );
+      if (response?.status === 200) {
         dispatch(markRead(notificationId));
       }
+      toast({ description: "notification marked as read", variant: "success" });
     } catch (error) {
-      console.error("Failed to mark notification as read:", error);
+      handleCustomError(error);
     }
   };
 
   const handleClearNotification = async (notificationId: string) => {
     try {
-      const response = await notificationApi.clearNotification(notificationId);
-      if (response.status === 200) {
+      const response = await deleteData(CommonApiEndPoint.CLEAR_NOTIFICATION.replace(":id",notificationId));
+      if (response?.status === 200) {
         dispatch(clearNotification(notificationId));
       }
+      toast({description:"notification cleared successfully"})
     } catch (error) {
-      console.error("Failed to clear notification:", error);
+      handleCustomError(error);
     }
   };
 
   const handleMarkAllAsRead = async () => {
     try {
-      const response = await notificationApi.markAllAsRead();
-      if (response.status === 200) {
+      const response = await patchData(CommonApiEndPoint.MARK_ALL_AS_READ)
+      if (response?.status === 200) {
         dispatch(markAllAsRead());
       }
+      toast({description:"Everything was marked as read successfully."})
     } catch (error) {
-      console.error("Failed to mark all as read:", error);
+      handleCustomError(error);
     }
   };
 
   const handleClearAll = async () => {
     try {
-      const response = await notificationApi.clearAllNotifications();
-      if (response.status === 200) {
+      const response = await deleteData(CommonApiEndPoint.CLEAR_ALL_NOTIFICATION);
+      if (response?.status === 200) {
         dispatch(clearAllNotifications());
         onClose();
       }
+      toast({description:"cleared all notification successfully"})
     } catch (error) {
-      console.error("Failed to clear all notifications:", error);
+      handleCustomError(error)
     }
   };
 
@@ -111,8 +127,6 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
         return "bg-[#e8c58c] text-[#000000]";
     }
   };
-
-
 
   if (!isOpen) return null;
 

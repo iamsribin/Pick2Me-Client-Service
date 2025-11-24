@@ -18,8 +18,9 @@ import GlobalLoading from '@/shared/components/loaders/GlobalLoading';
 import { fetchData } from '@/shared/services/api/api-service';
 import DriverApiEndpoints from '@/constants/driver-api-end-pontes';
 import { ResponseCom } from '@/shared/types/common';
+import { handleCustomError } from '@/shared/utils/error';
+import { toast } from '@/shared/hooks/use-toast';
 
-// Types
 interface Transaction {
   id: string;
   type: 'payout' | 'transfer';
@@ -65,13 +66,12 @@ const DriverWallet = () => {
        const response = await fetchData<ResponseCom["data"]>(DriverApiEndpoints.WALLET)
 
       const data = await response?.data;
-      console.log("wdata",data);
       
       if(response?.status == 200 && data){
           setWalletData(data);
       }
     } catch (error) {
-      console.error('Error fetching wallet data:', error);
+      handleCustomError(error)
     } finally {
       setLoading(false);
     }
@@ -85,9 +85,10 @@ const DriverWallet = () => {
       const data =  response?.data;
       if (data.accountLinkUrl) {
         window.location.href = data.accountLinkUrl;
+        toast({description:"successfully new account link created",variant:"success"})
       }
     } catch (error) {
-      console.error('Error refreshing onboarding:', error);
+      handleCustomError(error)
     } finally {
       setRefreshing(false);
     }
@@ -108,7 +109,6 @@ const DriverWallet = () => {
     });
   };
 
-  // Loading State
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#e8c58c] via-[#f5e5c8] to-[#ffffff] pb-20 sm:pb-4 sm:pl-64">
@@ -118,7 +118,6 @@ const DriverWallet = () => {
     );
   }
 
-  // No Account State
   if (!walletData?.hasAccount) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#fdb726] via-[#f5e5c8] to-[#ffffff] pt-20 sm:pt-6 pb-24 sm:pb-6 sm:pl-64 px-4 sm:px-8">
