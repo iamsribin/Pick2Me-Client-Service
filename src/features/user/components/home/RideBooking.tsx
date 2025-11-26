@@ -36,6 +36,7 @@ import {
 } from "@/constants/map-options";
 import { calculateDistance } from "@/shared/utils/getDistanceInMeters";
 import { getCurrentLocation } from "@/shared/utils/getCurrentLocation";
+import { MapPin, Search } from "lucide-react"; // Assuming you use lucide-react with shadcn
 
 interface OnlineDriver {
   driverId: string;
@@ -47,6 +48,7 @@ interface OnlineDriver {
 }
 
 const RideBooking: React.FC = () => {
+  // --- Existing State ---
   const [center, setCenter] = useState<{ lat: number; lng: number }>({
     lat: 13.003371,
     lng: 77.589134,
@@ -74,6 +76,15 @@ const RideBooking: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [useCurrentLocationAsPickup, setUseCurrentLocationAsPickup] =
     useState<boolean>(false);
+
+  // --- New State for Map Picker ---
+  const [isMapPickingMode, setIsMapPickingMode] = useState<boolean>(false);
+  const [tempPickupLocation, setTempPickupLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [tempPickupAddress, setTempPickupAddress] = useState<string>("");
+  const [isResolvingAddress, setIsResolvingAddress] = useState<boolean>(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -110,14 +121,6 @@ const RideBooking: React.FC = () => {
         });
         setCenter({ lat: userLocation.latitude, lng: userLocation.longitude });
         fetchNearbyDrivers(userLocation.latitude, userLocation.longitude);
-        if (useCurrentLocationAsPickup) {
-          const address = await coordinatesToAddress(
-            userLocation.latitude,
-            userLocation.longitude
-          );
-          setOrigin(address);
-          if (originRef.current) originRef.current.value = address;
-        }
       } catch (error: any) {
         toast({ description: error.message, variant: "error" });
       }
@@ -129,7 +132,57 @@ const RideBooking: React.FC = () => {
     }, 15000);
 
     return () => clearInterval(intervalId);
-  }, [useCurrentLocationAsPickup, fetchNearbyDrivers]);
+  }, [fetchNearbyDrivers]);
+
+  const handleMapClick = async (e: google.maps.MapMouseEvent) => {
+    if (!isMapPickingMode || !e.latLng) return;
+
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+
+    setTempPickupLocation({ lat, lng });
+    setIsResolvingAddress(true);
+
+    try {
+      const address = await coordinatesToAddress(lat, lng);
+      setTempPickupAddress(address);
+    } catch (error) {
+      setTempPickupAddress("Unknown location");
+      toast({
+        description: "Could not fetch address for this location",
+        variant: "error",
+      });
+    } finally {
+      setIsResolvingAddress(false);
+    }
+  };
+
+  const confirmMapSelection = () => {
+    if (!tempPickupLocation || !tempPickupAddress) return;
+
+    setOrigin(tempPickupAddress);
+
+    setUseCurrentLocationAsPickup(false);
+
+    setUserLocation(tempPickupLocation);
+    setCenter(tempPickupLocation);
+
+    setIsMapPickingMode(false);
+    setTempPickupLocation(null);
+
+    originRef.current?.focus?.();
+  };
+
+  const cancelMapSelection = () => {
+    setIsMapPickingMode(false);
+    setTempPickupLocation(null);
+    setTempPickupAddress("");
+  };
+
+  const enableMapPicker = () => {
+    setIsMapPickingMode(true);
+    toast({ description: "Tap on the map to select your pickup spot" });
+  };
 
   const fetchRouteAndVehicles = async () => {
     if (!origin || !destination) {
@@ -142,11 +195,13 @@ const RideBooking: React.FC = () => {
     const directionsService = new google.maps.DirectionsService();
 
     try {
-      const result = await directionsService.route({
-        origin: origin && userLocation ? userLocation : origin,
+      const request: google.maps.DirectionsRequest = {
+        origin: origin,
         destination,
         travelMode: google.maps.TravelMode.DRIVING,
-      });
+      };
+
+      const result = await directionsService.route(request);
 
       setDirections(result);
       const route = result.routes[0];
@@ -232,13 +287,24 @@ const RideBooking: React.FC = () => {
   const handleCurrentLocationCheck = async (checked: boolean) => {
     setLoading(true);
     setUseCurrentLocationAsPickup(checked);
-    if (checked && userLocation) {
-      const address = await coordinatesToAddress(
-        userLocation.lat,
-        userLocation.lng
-      );
-      setOrigin(address);
-      if (originRef.current) originRef.current.value = address;
+
+    if (checked) {
+      try {
+        const gps = await getCurrentLocation();
+        const newLoc = { lat: gps.latitude, lng: gps.longitude };
+        setUserLocation(newLoc);
+
+        const address = await coordinatesToAddress(newLoc.lat, newLoc.lng);
+        setOrigin(address);
+        if (originRef.current) originRef.current.value = address;
+
+        setCenter(newLoc);
+      } catch (e) {
+        toast({
+          description: "Could not get current location",
+          variant: "error",
+        });
+      }
     } else {
       setOrigin("");
       if (originRef.current) originRef.current.value = "";
@@ -318,9 +384,10 @@ const RideBooking: React.FC = () => {
     setSelectedVehicle(null);
     setShowVehicleSheet(false);
     setUseCurrentLocationAsPickup(false);
+    setIsMapPickingMode(false);
+    setTempPickupLocation(null);
     if (originRef.current) originRef.current.value = "";
     if (destinationRef.current) destinationRef.current.value = "";
-    // Re-fetch drivers around user to reset map view
     if (userLocation) fetchNearbyDrivers(userLocation.lat, userLocation.lng);
   };
 
@@ -335,10 +402,14 @@ const RideBooking: React.FC = () => {
             center={center}
             zoom={zoom}
             mapContainerStyle={mapContainerStyle}
-            options={mapOptions}
+            options={{
+              ...mapOptions,
+              draggableCursor: isMapPickingMode ? "crosshair" : "default",
+              clickableIcons: false,
+            }}
+            onClick={handleMapClick}
           >
-            {/* User Marker */}
-            {userLocation && (
+            {userLocation && !tempPickupLocation && (
               <Marker
                 position={userLocation}
                 icon={{
@@ -352,90 +423,165 @@ const RideBooking: React.FC = () => {
               />
             )}
 
+            {tempPickupLocation && (
+              <Marker
+                position={tempPickupLocation}
+                animation={google.maps.Animation.DROP}
+                draggable={true}
+                onDragEnd={(e) =>
+                  handleMapClick(e as google.maps.MapMouseEvent)
+                }
+              />
+            )}
+
             {/* Direction Route */}
             {directions && <DirectionsRenderer directions={directions} />}
 
-            {/* Online Driver Markers */}
-            {nearbyDrivers.map((driver) => (
-              <Marker
-                key={driver.driverId}
-                position={{ lat: driver.lat, lng: driver.lng }}
-                icon={{
-                  url: "/images/taxi.png",
-                  scaledSize: new google.maps.Size(45, 45),
-                }}
-                title={`${driver.vehicleModel} Available`}
-              />
-            ))}
+            {/* Online Driver Markers (Hide when picking location to reduce clutter) */}
+            {!isMapPickingMode &&
+              nearbyDrivers.map((driver) => (
+                <Marker
+                  key={driver.driverId}
+                  position={{ lat: driver.lat, lng: driver.lng }}
+                  icon={{
+                    url: "/images/taxi.png",
+                    scaledSize: new google.maps.Size(45, 45),
+                  }}
+                />
+              ))}
           </GoogleMap>
 
-          {/* Search Inputs Overlay */}
-          <div className="absolute top-4 left-4 right-4 bg-gray-900/95 backdrop-blur-md rounded-xl shadow-lg p-4 md:w-96 border border-gray-700">
-            {/* ... Inputs existing code ... */}
-            <div className="space-y-4">
-              {/* Toggle Switch */}
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={useCurrentLocationAsPickup}
-                  onCheckedChange={handleCurrentLocationCheck}
-                />
-                <Label className="text-gray-300">Current Location Pickup</Label>
-              </div>
+          {/* --- 1. SEARCH OVERLAY (Hidden when Map Picking Mode is ON) --- */}
+          {!isMapPickingMode && (
+            <div className="absolute top-4 left-4 right-4 bg-gray-900/95 backdrop-blur-md rounded-xl shadow-lg p-4 md:w-96 border border-gray-700 z-10">
+              <div className="space-y-4">
+                {/* Toggle Current Location */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={useCurrentLocationAsPickup}
+                      onCheckedChange={handleCurrentLocationCheck}
+                    />
+                    <Label className="text-gray-300 text-xs">
+                      Current Location as pickup
+                    </Label>
+                  </div>
+                </div>
 
-              {/* Origin Input */}
-              {
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 bg-gray-800 border-gray-600 hover:bg-gray-700"
+                      onClick={enableMapPicker}
+                      title="Set on Map"
+                    >
+                      <MapPin className="h-4 w-4 text-white" />
+                    </Button>
+                    <Label className="text-gray-300 text-xs">
+                      set pickup location at map
+                    </Label>
+                  </div>
+                </div>
+
+                {/* Origin Input Group */}
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Autocomplete
+                      onLoad={(autocomplete) => {
+                        autocomplete.addListener("place_changed", () => {
+                          const place = autocomplete.getPlace();
+                          setOrigin(place.formatted_address || "");
+                          setUseCurrentLocationAsPickup(false);
+                        });
+                      }}
+                    >
+                      <Input
+                        ref={originRef}
+                        value={origin}
+                        placeholder={loading ? "loading..." : "Pickup Location"}
+                        className="bg-gray-800 text-white"
+                        onChange={(e) => setOrigin(e.target.value)}
+                      />
+                    </Autocomplete>
+                  </div>
+                  {/* Button to Trigger Map Picker */}
+                </div>
+
+                {/* Destination Input */}
                 <Autocomplete
                   onLoad={(autocomplete) => {
                     autocomplete.addListener("place_changed", () => {
                       const place = autocomplete.getPlace();
-                      setOrigin(place.formatted_address || "");
+                      setDestination(place.formatted_address || "");
                     });
                   }}
                 >
                   <Input
-                    ref={originRef}
-                    placeholder={loading ? "loading..." : "Pickup Location"}
+                    ref={destinationRef}
+                    placeholder="Destination"
                     className="bg-gray-800 text-white"
-                    onChange={(e) => setOrigin(e.target.value)}
+                    onChange={(e) => setDestination(e.target.value)}
                   />
                 </Autocomplete>
-              }
 
-              {/* Destination Input */}
-              <Autocomplete
-                onLoad={(autocomplete) => {
-                  autocomplete.addListener("place_changed", () => {
-                    const place = autocomplete.getPlace();
-                    setDestination(place.formatted_address || "");
-                  });
-                }}
-              >
-                <Input
-                  ref={destinationRef}
-                  placeholder="Destination"
-                  className="bg-gray-800 text-white"
-                  onChange={(e) => setDestination(e.target.value)}
-                />
-              </Autocomplete>
-
-              <div className="flex gap-2">
-                <Button
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                  onClick={fetchRouteAndVehicles}
-                  disabled={loading}
-                >
-                  {loading ? "Loading..." : "Find Ride"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="text-black bg-white"
-                  onClick={handleClear}
-                >
-                  Clear
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    onClick={fetchRouteAndVehicles}
+                    disabled={loading}
+                  >
+                    {loading ? "Loading..." : "Find Ride"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="text-black bg-white"
+                    onClick={handleClear}
+                  >
+                    Clear
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* --- 2. MAP PICKER CONFIRMATION OVERLAY (Visible ONLY when Map Picking Mode is ON) --- */}
+          {isMapPickingMode && (
+            <div className="absolute bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-[400px] z-20">
+              <Card className="bg-gray-900 border-gray-700 text-white shadow-2xl">
+                <CardContent className="p-4 space-y-4">
+                  <div className="text-center">
+                    <h3 className="font-semibold text-lg text-blue-400">
+                      Choose your pickup spot
+                    </h3>
+                    <p className="text-sm text-gray-400 mt-1 min-h-[40px] flex items-center justify-center">
+                      {isResolvingAddress
+                        ? "Fetching address..."
+                        : tempPickupAddress || "Tap on map to place pin"}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      disabled={!tempPickupLocation || isResolvingAddress}
+                      onClick={confirmMapSelection}
+                    >
+                      Confirm Pickup
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={cancelMapSelection}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
 
         {/* Vehicle Selection Sheet */}
