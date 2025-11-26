@@ -14,6 +14,8 @@ interface VehicleOption {
   image: string;
   price: number;
   pricePerKm: number;
+    isAvailable: boolean; 
+
   eta: string;
   features: string[];
 }

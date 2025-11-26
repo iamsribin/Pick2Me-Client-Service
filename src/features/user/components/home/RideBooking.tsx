@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   GoogleMap,
@@ -19,593 +19,493 @@ import {
 } from "@/shared/components/ui/sheet";
 import { Switch } from "@/shared/components/ui/switch";
 import { Label } from "@/shared/components/ui/label";
-import { Badge } from "@/shared/components/ui/badge";
-import GpsFixedIcon from "@mui/icons-material/GpsFixed";
-import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/shared/services/redux/store";
-import { toast } from "sonner";
 import { BackendVehicle, VehicleOption } from "./type";
-import { geocodeLatLng } from "@/shared/utils/locationToAddress";
-// import { NotificationState, ResponseCom } from "@/shared/types/common";
-// import { useNotification } from "@/shared/hooks/useNotificatiom";
-// import { useLoading } from "@/shared/hooks/useLoading";
-// import { RideStatusData } from "@/shared/types/user/rideTypes";
-import { StatusCode } from "@/shared/types/enum";
+import { coordinatesToAddress } from "@/shared/utils/locationToAddress";
 import { fetchData, postData } from "@/shared/services/api/api-service";
 import ApiEndpoints from "@/constants/user-api-end-pointes";
 import { CommonApiEndPoint } from "@/constants/common-api-ent-point";
 import { ResponseCom } from "@/shared/types/common";
+import { toast } from "@/shared/hooks/use-toast";
+import { handleCustomError } from "@/shared/utils/error";
+import {
+  mapContainerStyle,
+  mapOptions,
+  libraries,
+} from "@/constants/map-options";
+import { calculateDistance } from "@/shared/utils/getDistanceInMeters";
+import { getCurrentLocation } from "@/shared/utils/getCurrentLocation";
 
-const libraries: "places"[] = ["places"];
-const mapContainerStyle = {
-  width: "100%",
-  height: "100%",
-};
-
-const mapOptions: google.maps.MapOptions = {
-  zoomControl: true,
-  streetViewControl: false,
-  mapTypeControl: false,
-  fullscreenControl: false,
-};
+interface OnlineDriver {
+  driverId: string;
+  lat: number;
+  lng: number;
+  distanceKm: number;
+  vehicleModel: string;
+  bearing?: number;
+}
 
 const RideBooking: React.FC = () => {
   const [center, setCenter] = useState<{ lat: number; lng: number }>({
     lat: 13.003371,
     lng: 77.589134,
   });
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [zoom, setZoom] = useState<number>(13);
+  const [zoom, setZoom] = useState<number>(9);
   const [origin, setOrigin] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
   const [userLocation, setUserLocation] = useState<{
     lat: number;
     lng: number;
   } | null>(null);
-  const [rideStatus, setRideStatus] = useState<any | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [directions, setDirections] =
     useState<google.maps.DirectionsResult | null>(null);
-  // const { showLoading, hideLoading } = useLoading();
   const [distanceInfo, setDistanceInfo] = useState<{
     distance: string;
     duration: string;
     distanceInKm: number;
   } | null>(null);
+
+  const [nearbyDrivers, setNearbyDrivers] = useState<OnlineDriver[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
+  const [showVehicleSheet, setShowVehicleSheet] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [useCurrentLocationAsPickup, setUseCurrentLocationAsPickup] =
     useState<boolean>(false);
-  const [showVehicleSheet, setShowVehicleSheet] = useState<boolean>(false);
-  const [driverDirections, setDriverDirections] =
-    useState<google.maps.DirectionsResult | null>(null);
-  const [notification, setNotification] = useState<any>({
-    open: false,
-    type: "info",
-    title: "",
-    message: "",
-  });
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const originRef = useRef<HTMLInputElement>(null);
   const destinationRef = useRef<HTMLInputElement>(null);
-  // const { socket, isConnected } = useSocket();
-  const { user } = useSelector((state: RootState) => ({
-    user: state.user,
-  }));
-    // const { paymentStatus, rideData } = useSelector(
-    //   (state: RootState) => state.RideMap
-    // );
 
-  // const { onNotification, offNotification } = useNotification();
-
+  const { user } = useSelector((state: RootState) => ({ user: state.user }));
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
     libraries,
   });
 
-  useEffect(() => {
-    const getUserLocation = () => {
-      if (!navigator.geolocation) return;
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation({ lat: latitude, lng: longitude });
-          setCenter({ lat: latitude, lng: longitude });
-
-          if (useCurrentLocationAsPickup) {
-            setOrigin("Current Location");
-            if (originRef.current) originRef.current.value = "Current Location";
-          }
-        },
-        (error) => {
-          // onNotification("error", "Unable to get your current location");
-        }
+  const fetchNearbyDrivers = useCallback(async (lat: number, lng: number) => {
+    try {
+      const response = await fetchData<{ drivers: OnlineDriver[] }>(
+        `${ApiEndpoints.GET_NEARBY_DRIVERS}?lat=${lat}&lng=${lng}&radius=100`
       );
-    };
 
+      if (response?.data?.drivers) {
+        setNearbyDrivers(response.data.drivers);
+      }
+    } catch (error) {
+      handleCustomError(error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const getUserLocation = async () => {
+      try {
+        const userLocation = await getCurrentLocation();
+        setUserLocation({
+          lat: userLocation.latitude,
+          lng: userLocation.longitude,
+        });
+        setCenter({ lat: userLocation.latitude, lng: userLocation.longitude });
+        fetchNearbyDrivers(userLocation.latitude, userLocation.longitude);
+        if (useCurrentLocationAsPickup) {
+          const address = await coordinatesToAddress(
+            userLocation.latitude,
+            userLocation.longitude
+          );
+          setOrigin(address);
+          if (originRef.current) originRef.current.value = address;
+        }
+      } catch (error: any) {
+        toast({ description: error.message, variant: "error" });
+      }
+    };
     getUserLocation();
 
-    return () => {
-      // if (socket && isConnected) {
-      //   socket.off("rideStatus");
-      //   socket.off("error");
-      // }
-    };
-  }, [
-    // socket,
-    // isConnected,
-    dispatch,
-    navigate,
-    useCurrentLocationAsPickup,
-    userLocation,
-  ]);
+    const intervalId = setInterval(() => {
+      if (userLocation) fetchNearbyDrivers(userLocation.lat, userLocation.lng);
+    }, 15000);
 
-  useEffect(() => {
-    if (useCurrentLocationAsPickup && userLocation) {
-      setOrigin("Current Location");
-      if (originRef.current) originRef.current.value = "Current Location";
-    } else if (!useCurrentLocationAsPickup && origin === "Current Location") {
-      setOrigin("");
-      if (originRef.current) originRef.current.value = "";
-    }
-  }, [useCurrentLocationAsPickup, userLocation]);
+    return () => clearInterval(intervalId);
+  }, [useCurrentLocationAsPickup, fetchNearbyDrivers]);
 
-  const fetchVehicles = async (distanceInKm: number) => {
-    try {
-      const data = await fetchData<BackendVehicle[]>(
-        CommonApiEndPoint.VEHICLE_MODELS,
-      );
-
-      const fetchedVehicles: any[] = data?.data.map((vehicle) => ({
-        id: vehicle.vehicleModel.toLowerCase(),
-        name: vehicle.vehicleModel,
-        image: vehicle.image,
-        price: Math.ceil(vehicle.basePrice + vehicle.pricePerKm * distanceInKm),
-        pricePerKm: vehicle.pricePerKm,
-        eta: vehicle.eta,
-        features: vehicle.features,
-      }));
-
-      setVehicles(fetchedVehicles);
-      setShowVehicleSheet(true);
-    } catch (error) {
-      setNotification({
-        open: true,
-        type: "error",
-        title: "Vehicle Data Error",
-        message: "Could not fetch vehicle options. Please try again.",
-      });
-    }
-  };
-
-  const fetchRoute = async () => {
-    if (!origin || !destination || !userLocation) {
-      // onNotification(
-      //   "error",
-      //   "Please enter valid pickup and dropoff locations"
-      // );
+  const fetchRouteAndVehicles = async () => {
+    if (!origin || !destination) {
+      toast({ description: "Please enter valid locations", variant: "error" });
       return;
     }
+    if (loading) return;
+    setLoading(true);
 
     const directionsService = new google.maps.DirectionsService();
-    const originLocation =
-      useCurrentLocationAsPickup && userLocation
-        ? new google.maps.LatLng(userLocation.lat, userLocation.lng)
-        : origin;
 
     try {
       const result = await directionsService.route({
-        origin: originLocation,
+        origin: origin && userLocation ? userLocation : origin,
         destination,
         travelMode: google.maps.TravelMode.DRIVING,
       });
 
       setDirections(result);
       const route = result.routes[0];
-      if (route?.legs[0]) {
-        const distanceInMeters = route.legs[0].distance?.value ?? 0;
+      const leg = route?.legs[0];
+
+      if (leg) {
+        const distInMeters = leg.distance?.value ?? 0;
+        const distInKm = distInMeters / 1000;
+
+        const routeStartLat = leg.start_location.lat();
+        const routeStartLng = leg.start_location.lng();
+
         setDistanceInfo({
-          distance: route.legs[0].distance?.text ?? "Unknown",
-          duration: route.legs[0].duration?.text ?? "Unknown",
-          distanceInKm: distanceInMeters / 1000,
+          distance: leg.distance?.text ?? "Unknown",
+          duration: leg.duration?.text ?? "Unknown",
+          distanceInKm: distInKm,
         });
-        await fetchVehicles(distanceInMeters / 1000);
+
+        await calculateVehiclePricingAndAvailability(
+          distInKm,
+          routeStartLat,
+          routeStartLng
+        );
       }
     } catch (error) {
-      console.log("Route Error==", error);
-
-      setNotification({
-        open: true,
-        type: "error",
-        title: "Route Error",
-        message: "Could not calculate the route",
-      });
+      toast({ description: "Could not calculate route", variant: "error" });
     }
   };
 
-  const handleSearchCabs = async () => {
-    // if(rideData){
-    //  onNotification("alert", "You're already on a ride. Finish it before booking another.");
-    //   return;
-    // }
-    if (
-      !destination ||
-      (useCurrentLocationAsPickup && !userLocation) ||
-      (!useCurrentLocationAsPickup && !origin)
-    ) {
-      // onNotification("error", "Please enter required location details");
-      return;
+  const calculateVehiclePricingAndAvailability = async (
+    tripDistanceKm: number,
+    pickupLat: number,
+    pickupLng: number
+  ) => {
+    try {
+      const data = await fetchData<BackendVehicle[]>(
+        CommonApiEndPoint.VEHICLE_MODELS
+      );
+
+      await fetchNearbyDrivers(pickupLat, pickupLng);
+
+      const processedVehicles: VehicleOption[] =
+        data?.data.map((vehicle) => {
+          const estimatedPrice = Math.ceil(
+            vehicle.basePrice + vehicle.pricePerKm * tripDistanceKm
+          );
+
+          const isAvailable = nearbyDrivers.some((driver) => {
+            const driverDist = calculateDistance(
+              pickupLat,
+              pickupLng,
+              driver.lat,
+              driver.lng
+            );
+
+            return (
+              driver.vehicleModel.toLowerCase() ===
+                vehicle.vehicleModel.toLowerCase() && driverDist <= 5000
+            );
+          });
+
+          return {
+            id: vehicle.vehicleModel.toLowerCase(),
+            name: vehicle.vehicleModel,
+            image: vehicle.image,
+            price: estimatedPrice,
+            pricePerKm: vehicle.pricePerKm,
+            eta: isAvailable ? vehicle.eta : "No drivers nearby",
+            features: vehicle.features,
+            isAvailable: isAvailable,
+          };
+        }) || [];
+
+      setVehicles(processedVehicles);
+      setShowVehicleSheet(true);
+    } catch (error) {
+      toast({ description: "Failed to load vehicle options" });
+    } finally {
+      setLoading(false);
     }
-    await fetchRoute();
+  };
+
+  const handleCurrentLocationCheck = async (checked: boolean) => {
+    setLoading(true);
+    setUseCurrentLocationAsPickup(checked);
+    if (checked && userLocation) {
+      const address = await coordinatesToAddress(
+        userLocation.lat,
+        userLocation.lng
+      );
+      setOrigin(address);
+      if (originRef.current) originRef.current.value = address;
+    } else {
+      setOrigin("");
+      if (originRef.current) originRef.current.value = "";
+    }
+    setLoading(false);
   };
 
   const handleBookRide = async () => {
-    if (
-      !origin ||
-      !destination ||
-      !userLocation ||
-      !selectedVehicle ||
-      !distanceInfo
-    ) {
-      toast.error("Please select a vehicle and ensure all locations are set");
+    if (!selectedVehicle || !distanceInfo || !directions) return;
+
+    const selectedVehicleData = vehicles.find((v) => v.id === selectedVehicle);
+    if (!selectedVehicleData?.isAvailable) {
+      toast({
+        description: "This vehicle type is no longer available nearby.",
+      });
       return;
     }
+    if (user.loggedIn) {
+      toast({
+        description:
+          "You're not logged in. Please register before booking a ride.",
+        variant: "error",
+      });
+      return;
+    }
+
     setIsSearching(true);
 
     try {
-      // if (!socket || !isConnected) {
-      //   throw new Error("Socket not connected");
-      // }
-      // showLoading({
-      //   isLoading: true,
-      //   loadingMessage: "Searching nearby Drivers",
-      //   loadingType: "ride-search",
-      //   progress: 30,
-      // });
-
-      const pickupLat =
-        directions?.routes[0]?.legs[0]?.start_location?.lat() ??
-        userLocation.lat;
-      const pickupLng =
-        directions?.routes[0]?.legs[0]?.start_location?.lng() ??
-        userLocation.lng;
-      const dropoffLat =
-        directions?.routes[0]?.legs[0]?.end_location?.lat() ??
-        userLocation.lat + 0.05;
-      const dropoffLng =
-        directions?.routes[0]?.legs[0]?.end_location?.lng() ??
-        userLocation.lng + 0.05;
-
-      let pickupAddress = origin;
-      let dropoffAddress = destination;
-
-      try {
-        pickupAddress = await geocodeLatLng(pickupLat, pickupLng);
-        dropoffAddress = await geocodeLatLng(dropoffLat, dropoffLng);
-      } catch (error) {
-        console.error("Failed to geocode location:", error);
-      }
-
-      const selectedVehicleData = vehicles.find(
-        (v) => v.id === selectedVehicle
-      );
-      const vehicleModel = selectedVehicleData?.name ?? "Standard";
-
-      const bookingData = {
+      const leg = directions.routes[0].legs[0];
+      const bookingPayload = {
         pickupLocation: {
-          address: pickupAddress,
-          latitude: pickupLat,
-          longitude: pickupLng,
+          address: leg.start_address,
+          latitude: leg.start_location.lat(),
+          longitude: leg.start_location.lng(),
         },
         dropOffLocation: {
-          address: dropoffAddress,
-          latitude: dropoffLat,
-          longitude: dropoffLng,
+          address: leg.end_address,
+          latitude: leg.end_location.lat(),
+          longitude: leg.end_location.lng(),
         },
-        vehicleModel,
-        userName: user.user,
-        estimatedPrice: selectedVehicleData?.price ?? 0,
+        vehicleModel: selectedVehicleData.name,
+        // userName: user.user,
+        estimatedPrice: selectedVehicleData.price,
         estimatedDuration: distanceInfo.duration,
         distanceInfo: {
           distance: distanceInfo.distance,
           distanceInKm: distanceInfo.distanceInKm,
         },
-        mobile: user.mobile,
-        profile: user.profile,
+        // mobile: user.mobile,
+        // profile: user.profile
       };
 
-      const data = await postData<ResponseCom["data"]>(
+      const response = await postData<ResponseCom["data"]>(
         ApiEndpoints.BOOK_MY_CAB,
-        bookingData
+        bookingPayload
       );
 
-      console.log("sta==", data);
-      
-      setIsSearching(false);
-      setShowVehicleSheet(false);
-      if (data.status == StatusCode.Created) {
-        // showLoading({
-        //   isLoading: true,
-        //   loadingMessage: "Searching nearby Drivers",
-        //   loadingType: "ride-search",
-        //   progress: 60,
-        // });
+      if (response?.status === 201 || response?.status === 200) {
+        toast({ description: "Ride request sent!", variant: "success" });
+        setShowVehicleSheet(false);
+        // Navigate to ride tracking page or show waiting UI
       }
-    } catch (error) {
-      console.log("booking error", error);
-      toast.error("Failed to send ride request. Please try again.");
-      setNotification({
-        open: true,
-        type: "error",
-        title: "Booking Error",
-        message: "Failed to send ride request. Please try again.",
-      });
-      // hideLoading();
+    } catch (e) {
+      toast({ description: "Booking failed" });
+      console.error(e);
+    } finally {
       setIsSearching(false);
-      handleClear();
     }
   };
 
   const handleClear = () => {
     setOrigin("");
     setDestination("");
-    setRideStatus(null);
-    setIsSearching(false);
     setDirections(null);
-    setDriverDirections(null);
-    setDistanceInfo(null);
     setVehicles([]);
     setSelectedVehicle(null);
     setShowVehicleSheet(false);
+    setUseCurrentLocationAsPickup(false);
     if (originRef.current) originRef.current.value = "";
     if (destinationRef.current) destinationRef.current.value = "";
+    // Re-fetch drivers around user to reset map view
+    if (userLocation) fetchNearbyDrivers(userLocation.lat, userLocation.lng);
   };
 
-  if (!isLoaded) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-900">
-        <div className="text-white">Loading Map...</div>
-      </div>
-    );
-  }
+  if (!isLoaded) return <div className="text-white">Loading Map...</div>;
 
   return (
-        <section className="py-20 bg-gradient-to-br from-black to-gray-800">
-
-    <div className="container mx-auto px-4 py-8 bg-gray-900">
-      <header className="mb-6 text-center">
-        <h1 className="text-4xl font-bold text-white">Find Your Ride</h1>
-        <p className="text-gray-400 mt-2">
-          Safe, reliable rides to your destination
-        </p>
-      </header>
-
-      <div className="relative">
-        <div className="h-[75vh] w-full rounded-xl overflow-hidden shadow-xl">
+    <section className="py-20 bg-gradient-to-br from-black to-gray-800 h-screen flex flex-col">
+      <div className="container mx-auto px-4 py-8 flex-1 flex flex-col relative">
+        {/* Map Area */}
+        <div className="flex-1 w-full rounded-xl overflow-hidden shadow-xl relative">
           <GoogleMap
             center={center}
             zoom={zoom}
             mapContainerStyle={mapContainerStyle}
             options={mapOptions}
-            onLoad={(mapInstance) => setMap(mapInstance)}
           >
-            {userLocation && !directions && !driverDirections && (
-              <Marker position={userLocation} />
-            )}
-            {driverDirections ? (
-              <DirectionsRenderer directions={driverDirections} />
-            ) : directions ? (
-              <DirectionsRenderer directions={directions} />
-            ) : null}
-            {rideStatus?.driverCoordinates && (
+            {/* User Marker */}
+            {userLocation && (
               <Marker
-                position={{
-                  lat: rideStatus.driverCoordinates.latitude,
-                  lng: rideStatus.driverCoordinates.longitude,
+                position={userLocation}
+                icon={{
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 8,
+                  fillColor: "#4285F4",
+                  fillOpacity: 1,
+                  strokeWeight: 2,
+                  strokeColor: "white",
                 }}
-                label="Driver"
               />
             )}
+
+            {/* Direction Route */}
+            {directions && <DirectionsRenderer directions={directions} />}
+
+            {/* Online Driver Markers */}
+            {nearbyDrivers.map((driver) => (
+              <Marker
+                key={driver.driverId}
+                position={{ lat: driver.lat, lng: driver.lng }}
+                icon={{
+                  url: "/images/taxi.png",
+                  scaledSize: new google.maps.Size(45, 45),
+                }}
+                title={`${driver.vehicleModel} Available`}
+              />
+            ))}
           </GoogleMap>
-        </div>
 
-        <div className="absolute top-4 left-4 right-4 bg-gray-900/95 backdrop-blur-md rounded-xl shadow-lg p-4 md:w-96 md:left-4 md:right-auto border border-gray-700">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Switch
-                id="use-current-location"
-                checked={useCurrentLocationAsPickup}
-                onCheckedChange={setUseCurrentLocationAsPickup}
-              />
-              <Label
-                htmlFor="use-current-location"
-                className="text-sm font-medium text-gray-300"
-              >
-                Use my current location as pickup
-              </Label>
-            </div>
-
-            {!useCurrentLocationAsPickup && (
-              <div className="w-full">
-                <label className="text-sm font-medium text-gray-300 mb-1 block">
-                  Pickup Location
-                </label>
-                <div className="flex gap-2">
-                  <Autocomplete className="w-full">
-                    <Input
-                      type="text"
-                      ref={originRef}
-                      placeholder="Enter pickup location"
-                      value={origin}
-                      onChange={(e) => setOrigin(e.target.value)}
-                      className="bg-gray-800 border-gray-600 text-white focus:border-gray-500"
-                    />
-                  </Autocomplete>
-                  <Button
-                    size="icon"
-                    className="bg-gray-700 hover:bg-gray-600 text-white"
-                    onClick={() => {
-                      if (userLocation) {
-                        setOrigin("Current Location");
-                        if (originRef.current)
-                          originRef.current.value = "Current Location";
-                      }
-                    }}
-                  >
-                    <GpsFixedIcon className="text-white h-5 w-5" />
-                  </Button>
-                </div>
+          {/* Search Inputs Overlay */}
+          <div className="absolute top-4 left-4 right-4 bg-gray-900/95 backdrop-blur-md rounded-xl shadow-lg p-4 md:w-96 border border-gray-700">
+            {/* ... Inputs existing code ... */}
+            <div className="space-y-4">
+              {/* Toggle Switch */}
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={useCurrentLocationAsPickup}
+                  onCheckedChange={handleCurrentLocationCheck}
+                />
+                <Label className="text-gray-300">Current Location Pickup</Label>
               </div>
-            )}
 
-            <div className="w-full">
-              <label className="text-sm font-medium text-gray-300 mb-1 block">
-                Dropoff Location
-              </label>
-              <Autocomplete className="w-full">
+              {/* Origin Input */}
+              {
+                <Autocomplete
+                  onLoad={(autocomplete) => {
+                    autocomplete.addListener("place_changed", () => {
+                      const place = autocomplete.getPlace();
+                      setOrigin(place.formatted_address || "");
+                    });
+                  }}
+                >
+                  <Input
+                    ref={originRef}
+                    placeholder={loading ? "loading..." : "Pickup Location"}
+                    className="bg-gray-800 text-white"
+                    onChange={(e) => setOrigin(e.target.value)}
+                  />
+                </Autocomplete>
+              }
+
+              {/* Destination Input */}
+              <Autocomplete
+                onLoad={(autocomplete) => {
+                  autocomplete.addListener("place_changed", () => {
+                    const place = autocomplete.getPlace();
+                    setDestination(place.formatted_address || "");
+                  });
+                }}
+              >
                 <Input
-                  type="text"
                   ref={destinationRef}
-                  placeholder="Enter destination"
-                  value={destination}
+                  placeholder="Destination"
+                  className="bg-gray-800 text-white"
                   onChange={(e) => setDestination(e.target.value)}
-                  className="bg-gray-800 border-gray-600 text-white focus:border-gray-500"
                 />
               </Autocomplete>
-            </div>
 
-            <div className="flex gap-2">
-              <Button
-                className="w-3/4 h-10 bg-gray-700 hover:bg-gray-600 font-medium text-white"
-                onClick={handleSearchCabs}
-                disabled={
-                  (useCurrentLocationAsPickup &&
-                    (!userLocation || !destination)) ||
-                  (!useCurrentLocationAsPickup && (!origin || !destination)) ||
-                  isSearching
-                }
-              >
-                <DirectionsCarIcon className="mr-2 h-5 w-5" />
-                Find Rides
-              </Button>
-              <Button
-                className="w-1/4 h-10 bg-gray-600 text-gray-300 hover:bg-gray-500 font-medium"
-                onClick={handleClear}
-                disabled={isSearching}
-              >
-                Clear
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  onClick={fetchRouteAndVehicles}
+                  disabled={loading}
+                >
+                  {loading ? "Loading..." : "Find Ride"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="text-black bg-white"
+                  onClick={handleClear}
+                >
+                  Clear
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Vehicle Selection Sheet */}
         <Sheet open={showVehicleSheet} onOpenChange={setShowVehicleSheet}>
           <SheetContent
             side="bottom"
-            className="h-[70vh] rounded-t-xl max-w-2xl mx-auto bg-gray-900 border-gray-700"
+            className="w-full max-w-md mx-auto rounded-t-2xl bg-gray-900 border-gray-700 text-white overflow-y-auto max-h-[70vh]"
           >
-            <SheetHeader className="text-left mb-4">
-              <SheetTitle className="text-2xl text-white">Choose Your Ride</SheetTitle>
+            <SheetHeader>
+              <SheetTitle className="text-white">Select Vehicle</SheetTitle>
               {distanceInfo && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-4 text-sm">
-                    <Badge
-                      variant="outline"
-                      className="bg-gray-800 text-gray-300 border-gray-600"
-                    >
-                      Distance: {distanceInfo.distance}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className="bg-gray-800 text-gray-300 border-gray-600"
-                    >
-                      Duration: {distanceInfo.duration}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    * Prices are estimates and may vary based on route, traffic,
-                    and weather conditions.
-                  </p>
-                </div>
+                <p className="text-gray-400 text-sm">
+                  {distanceInfo.distance} • {distanceInfo.duration}
+                </p>
               )}
             </SheetHeader>
 
-            <div className="grid gap-4 pb-16">
-              {vehicles.map((vehicle) => (
+            <div className="mt-4 space-y-3">
+              {vehicles.map((v) => (
                 <Card
-                  key={vehicle.id}
-                  className={`cursor-pointer transition-all bg-gray-800 border-gray-700 ${
-                    selectedVehicle === vehicle.id
-                      ? "border-gray-500 shadow-md"
-                      : "hover:border-gray-600"
+                  key={v.id}
+                  onClick={() => v.isAvailable && setSelectedVehicle(v.id)}
+                  className={`bg-gray-800 border-gray-700 transition-all ${
+                    selectedVehicle === v.id
+                      ? "border-blue-500 ring-1 ring-blue-500"
+                      : ""
+                  } ${
+                    !v.isAvailable
+                      ? "opacity-50 cursor-not-allowed"
+                      : "cursor-pointer hover:bg-gray-700"
                   }`}
-                  onClick={() => setSelectedVehicle(vehicle.id)}
                 >
-                  <CardContent className="p-4 flex items-center justify-between">
+                  <CardContent className="p-4 flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
-                        <img
-                          src={vehicle.image}
-                          alt={vehicle.name}
-                          className="w-14 h-14 object-contain"
-                        />
-                      </div>
+                      <img
+                        src={v.image}
+                        alt={v.name}
+                        className="w-16 h-10 object-contain"
+                      />
                       <div>
-                        <p className="font-semibold text-lg text-white">{vehicle.name}</p>
-                        <p className="text-sm text-gray-400">{vehicle.eta}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {vehicle.features.map((feature, index) => (
-                            <Badge
-                              key={index}
-                              variant="secondary"
-                              className="text-xs bg-gray-700 text-gray-300"
-                            >
-                              {feature}
-                            </Badge>
-                          ))}
-                        </div>
+                        <h3 className="font-bold">{v.name}</h3>
+                        <p className="text-xs text-gray-400">
+                          {v.isAvailable ? v.eta : "Unavailable nearby"}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-xl font-bold text-white">${vehicle.price}</div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg">${v.price}</p>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 bg-gray-900 p-4 border-t border-gray-700 max-w-2xl mx-auto">
+            <div className="sticky bottom-0 bg-gray-900 pt-4 mt-4 border-t border-gray-700">
               <Button
-                className="w-full h-14 text-lg font-medium bg-gray-700 hover:bg-gray-600 text-white"
-                onClick={handleBookRide}
+                className="w-full h-12 text-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!selectedVehicle || isSearching}
+                onClick={handleBookRide}
               >
                 {isSearching ? (
-                  <div className="flex items-center gap-2">
-                    <span>Finding Driver</span>
-                    <Player
-                      autoplay
-                      loop
-                      src="https://lottie.host/6d218af1-a90d-49b2-b56e-7ba126e3ac68/mNvXamDXCm.json"
-                      style={{ height: "30px", width: "30px" }}
-                    />
-                  </div>
+                  <Player autoplay loop src="..." style={{ height: 30 }} />
                 ) : (
-                  `Book ${
-                    selectedVehicle
-                      ? vehicles.find((v) => v.id === selectedVehicle)?.name ??
-                        "Ride"
-                      : "Ride"
-                  }`
+                  "Book Ride"
                 )}
               </Button>
             </div>
           </SheetContent>
         </Sheet>
       </div>
-    </div>
     </section>
   );
 };

@@ -1,5 +1,5 @@
 
-export const geocodeLatLng = async (lat: number, lng: number): Promise<string> => {
+export const coordinatesToAddress = async (lat: number, lng: number): Promise<string> => {
 
   const geocoder = new google.maps.Geocoder();
   const latlng = { lat:Number(lat), lng: Number(lng)};

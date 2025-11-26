@@ -3,7 +3,8 @@ enum UserApiEndpoints {
   CANCEL_RIDE ="/users/me/cancel-ride",
   COMPLETE_RIDE = "/users/me/ride-completed",
   UPLOAD_CHAT_FILE = "/users/me/upload-chat-file",
-  BOOK_MY_CAB="/users/me/book-cab",
+  BOOK_MY_CAB="/bookings/me/book-cab",
+  GET_NEARBY_DRIVERS="/bookings/users/list-online-drivers",
   // auth 
   REGISTER = '/users/register',
   CHECK_USER ='/users/check-registration',
