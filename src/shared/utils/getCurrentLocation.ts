@@ -138,12 +138,12 @@ export async function getCurrentLocation(
     }
 
 
-    toast({
-      description: `Location obtained but accuracy is ${Math.round(
-        accuracy
-      )}m — move to an open area for a more precise fix.`,
-      variant: "warning",
-    });
+    // toast({
+    //   description: `Location obtained but accuracy is ${Math.round(
+    //     accuracy
+    //   )}m — move to an open area for a more precise fix.`,
+    //   variant: "warning",
+    // });
     return {
       latitude: pos.coords.latitude,
       longitude: pos.coords.longitude,

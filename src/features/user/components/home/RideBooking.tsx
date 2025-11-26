@@ -36,7 +36,7 @@ import {
 } from "@/constants/map-options";
 import { calculateDistance } from "@/shared/utils/getDistanceInMeters";
 import { getCurrentLocation } from "@/shared/utils/getCurrentLocation";
-import { MapPin, Search } from "lucide-react"; // Assuming you use lucide-react with shadcn
+import { MapPin, Navigation, Star } from "lucide-react";
 
 interface OnlineDriver {
   driverId: string;
@@ -54,12 +54,15 @@ const RideBooking: React.FC = () => {
     lng: 77.589134,
   });
   const [zoom, setZoom] = useState<number>(9);
+
+  // Location States
   const [origin, setOrigin] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
   const [userLocation, setUserLocation] = useState<{
     lat: number;
     lng: number;
   } | null>(null);
+
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [directions, setDirections] =
     useState<google.maps.DirectionsResult | null>(null);
@@ -77,8 +80,15 @@ const RideBooking: React.FC = () => {
   const [useCurrentLocationAsPickup, setUseCurrentLocationAsPickup] =
     useState<boolean>(false);
 
-  // --- New State for Map Picker ---
-  const [isMapPickingMode, setIsMapPickingMode] = useState<boolean>(false);
+  // --- UPDATED Map Picker State ---
+  // pickingField tracks WHICH input we are setting: 'origin' or 'destination'
+  const [pickingField, setPickingField] = useState<
+    "origin" | "destination" | null
+  >(null);
+  const [activeInput, setActiveInput] = useState<
+    "origin" | "destination" | null
+  >(null); // For showing dropdowns
+
   const [tempPickupLocation, setTempPickupLocation] = useState<{
     lat: number;
     lng: number;
@@ -102,7 +112,6 @@ const RideBooking: React.FC = () => {
       const response = await fetchData<{ drivers: OnlineDriver[] }>(
         `${ApiEndpoints.GET_NEARBY_DRIVERS}?lat=${lat}&lng=${lng}&radius=100`
       );
-
       if (response?.data?.drivers) {
         setNearbyDrivers(response.data.drivers);
       }
@@ -134,8 +143,10 @@ const RideBooking: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [fetchNearbyDrivers]);
 
+  // --- Map Interaction Logic ---
+
   const handleMapClick = async (e: google.maps.MapMouseEvent) => {
-    if (!isMapPickingMode || !e.latLng) return;
+    if (!pickingField || !e.latLng) return;
 
     const lat = e.latLng.lat();
     const lng = e.latLng.lng();
@@ -148,40 +159,56 @@ const RideBooking: React.FC = () => {
       setTempPickupAddress(address);
     } catch (error) {
       setTempPickupAddress("Unknown location");
-      toast({
-        description: "Could not fetch address for this location",
-        variant: "error",
-      });
+      toast({ description: "Could not fetch address", variant: "error" });
     } finally {
       setIsResolvingAddress(false);
     }
   };
 
+  const enableMapPicker = (type: "origin" | "destination") => {
+    setPickingField(type);
+    setActiveInput(null);
+    setTempPickupLocation(null);
+    setTempPickupAddress("");
+    toast({
+      description: `Tap on map to select ${
+        type === "origin" ? "pickup" : "drop-off"
+      } location`,
+    });
+  };
+
   const confirmMapSelection = () => {
-    if (!tempPickupLocation || !tempPickupAddress) return;
+    if (!tempPickupLocation || !tempPickupAddress || !pickingField) return;
 
-    setOrigin(tempPickupAddress);
+    if (pickingField === "origin") {
+      setOrigin(tempPickupAddress);
+      if (originRef.current) originRef.current.value = tempPickupAddress;
+      setUseCurrentLocationAsPickup(false);
+      setUserLocation(tempPickupLocation);
+    } else {
+      setDestination(tempPickupAddress);
+      if (destinationRef.current)
+        destinationRef.current.value = tempPickupAddress;
+    }
 
-    setUseCurrentLocationAsPickup(false);
-
-    setUserLocation(tempPickupLocation);
     setCenter(tempPickupLocation);
 
-    setIsMapPickingMode(false);
+    setPickingField(null);
     setTempPickupLocation(null);
-
-    originRef.current?.focus?.();
   };
 
   const cancelMapSelection = () => {
-    setIsMapPickingMode(false);
+    setPickingField(null);
     setTempPickupLocation(null);
     setTempPickupAddress("");
   };
 
-  const enableMapPicker = () => {
-    setIsMapPickingMode(true);
-    toast({ description: "Tap on the map to select your pickup spot" });
+  const handleInputFocus = (type: "origin" | "destination") => {
+    setActiveInput(type);
+  };
+
+  const handleInputBlur = () => {
+    setTimeout(() => setActiveInput(null), 200);
   };
 
   const fetchRouteAndVehicles = async () => {
@@ -202,7 +229,6 @@ const RideBooking: React.FC = () => {
       };
 
       const result = await directionsService.route(request);
-
       setDirections(result);
       const route = result.routes[0];
       const leg = route?.legs[0];
@@ -210,10 +236,6 @@ const RideBooking: React.FC = () => {
       if (leg) {
         const distInMeters = leg.distance?.value ?? 0;
         const distInKm = distInMeters / 1000;
-
-        const routeStartLat = leg.start_location.lat();
-        const routeStartLng = leg.start_location.lng();
-
         setDistanceInfo({
           distance: leg.distance?.text ?? "Unknown",
           duration: leg.duration?.text ?? "Unknown",
@@ -222,8 +244,8 @@ const RideBooking: React.FC = () => {
 
         await calculateVehiclePricingAndAvailability(
           distInKm,
-          routeStartLat,
-          routeStartLng
+          leg.start_location.lat(),
+          leg.start_location.lng()
         );
       }
     } catch (error) {
@@ -240,7 +262,6 @@ const RideBooking: React.FC = () => {
       const data = await fetchData<BackendVehicle[]>(
         CommonApiEndPoint.VEHICLE_MODELS
       );
-
       await fetchNearbyDrivers(pickupLat, pickupLng);
 
       const processedVehicles: VehicleOption[] =
@@ -248,7 +269,6 @@ const RideBooking: React.FC = () => {
           const estimatedPrice = Math.ceil(
             vehicle.basePrice + vehicle.pricePerKm * tripDistanceKm
           );
-
           const isAvailable = nearbyDrivers.some((driver) => {
             const driverDist = calculateDistance(
               pickupLat,
@@ -256,7 +276,6 @@ const RideBooking: React.FC = () => {
               driver.lat,
               driver.lng
             );
-
             return (
               driver.vehicleModel.toLowerCase() ===
                 vehicle.vehicleModel.toLowerCase() && driverDist <= 5000
@@ -287,17 +306,14 @@ const RideBooking: React.FC = () => {
   const handleCurrentLocationCheck = async (checked: boolean) => {
     setLoading(true);
     setUseCurrentLocationAsPickup(checked);
-
     if (checked) {
       try {
         const gps = await getCurrentLocation();
         const newLoc = { lat: gps.latitude, lng: gps.longitude };
         setUserLocation(newLoc);
-
         const address = await coordinatesToAddress(newLoc.lat, newLoc.lng);
         setOrigin(address);
         if (originRef.current) originRef.current.value = address;
-
         setCenter(newLoc);
       } catch (e) {
         toast({
@@ -317,22 +333,15 @@ const RideBooking: React.FC = () => {
 
     const selectedVehicleData = vehicles.find((v) => v.id === selectedVehicle);
     if (!selectedVehicleData?.isAvailable) {
-      toast({
-        description: "This vehicle type is no longer available nearby.",
-      });
+      toast({ description: "Vehicle unavailable." });
       return;
     }
     if (user.loggedIn) {
-      toast({
-        description:
-          "You're not logged in. Please register before booking a ride.",
-        variant: "error",
-      });
+      toast({ description: "Please login.", variant: "error" });
       return;
     }
 
     setIsSearching(true);
-
     try {
       const leg = directions.routes[0].legs[0];
       const bookingPayload = {
@@ -347,30 +356,24 @@ const RideBooking: React.FC = () => {
           longitude: leg.end_location.lng(),
         },
         vehicleModel: selectedVehicleData.name,
-        // userName: user.user,
         estimatedPrice: selectedVehicleData.price,
         estimatedDuration: distanceInfo.duration,
         distanceInfo: {
           distance: distanceInfo.distance,
           distanceInKm: distanceInfo.distanceInKm,
         },
-        // mobile: user.mobile,
-        // profile: user.profile
       };
 
       const response = await postData<ResponseCom["data"]>(
         ApiEndpoints.BOOK_MY_CAB,
         bookingPayload
       );
-
       if (response?.status === 201 || response?.status === 200) {
         toast({ description: "Ride request sent!", variant: "success" });
         setShowVehicleSheet(false);
-        // Navigate to ride tracking page or show waiting UI
       }
     } catch (e) {
       toast({ description: "Booking failed" });
-      console.error(e);
     } finally {
       setIsSearching(false);
     }
@@ -384,7 +387,7 @@ const RideBooking: React.FC = () => {
     setSelectedVehicle(null);
     setShowVehicleSheet(false);
     setUseCurrentLocationAsPickup(false);
-    setIsMapPickingMode(false);
+    setPickingField(null);
     setTempPickupLocation(null);
     if (originRef.current) originRef.current.value = "";
     if (destinationRef.current) destinationRef.current.value = "";
@@ -404,7 +407,7 @@ const RideBooking: React.FC = () => {
             mapContainerStyle={mapContainerStyle}
             options={{
               ...mapOptions,
-              draggableCursor: isMapPickingMode ? "crosshair" : "default",
+              draggableCursor: pickingField ? "crosshair" : "default",
               clickableIcons: false,
             }}
             onClick={handleMapClick}
@@ -434,11 +437,9 @@ const RideBooking: React.FC = () => {
               />
             )}
 
-            {/* Direction Route */}
             {directions && <DirectionsRenderer directions={directions} />}
 
-            {/* Online Driver Markers (Hide when picking location to reduce clutter) */}
-            {!isMapPickingMode &&
+            {!pickingField &&
               nearbyDrivers.map((driver) => (
                 <Marker
                   key={driver.driverId}
@@ -451,81 +452,119 @@ const RideBooking: React.FC = () => {
               ))}
           </GoogleMap>
 
-          {/* --- 1. SEARCH OVERLAY (Hidden when Map Picking Mode is ON) --- */}
-          {!isMapPickingMode && (
+          {/* --- SEARCH OVERLAY (Hidden during map picking) --- */}
+          {!pickingField && (
             <div className="absolute top-4 left-4 right-4 bg-gray-900/95 backdrop-blur-md rounded-xl shadow-lg p-4 md:w-96 border border-gray-700 z-10">
               <div className="space-y-4">
-                {/* Toggle Current Location */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={useCurrentLocationAsPickup}
-                      onCheckedChange={handleCurrentLocationCheck}
-                    />
-                    <Label className="text-gray-300 text-xs">
-                      Current Location as pickup
-                    </Label>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="shrink-0 bg-gray-800 border-gray-600 hover:bg-gray-700"
-                      onClick={enableMapPicker}
-                      title="Set on Map"
-                    >
-                      <MapPin className="h-4 w-4 text-white" />
-                    </Button>
-                    <Label className="text-gray-300 text-xs">
-                      set pickup location at map
-                    </Label>
-                  </div>
-                </div>
-
-                {/* Origin Input Group */}
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Autocomplete
-                      onLoad={(autocomplete) => {
-                        autocomplete.addListener("place_changed", () => {
-                          const place = autocomplete.getPlace();
-                          setOrigin(place.formatted_address || "");
-                          setUseCurrentLocationAsPickup(false);
-                        });
-                      }}
-                    >
-                      <Input
-                        ref={originRef}
-                        value={origin}
-                        placeholder={loading ? "loading..." : "Pickup Location"}
-                        className="bg-gray-800 text-white"
-                        onChange={(e) => setOrigin(e.target.value)}
-                      />
-                    </Autocomplete>
-                  </div>
-                  {/* Button to Trigger Map Picker */}
-                </div>
-
-                {/* Destination Input */}
-                <Autocomplete
-                  onLoad={(autocomplete) => {
-                    autocomplete.addListener("place_changed", () => {
-                      const place = autocomplete.getPlace();
-                      setDestination(place.formatted_address || "");
-                    });
-                  }}
-                >
-                  <Input
-                    ref={destinationRef}
-                    placeholder="Destination"
-                    className="bg-gray-800 text-white"
-                    onChange={(e) => setDestination(e.target.value)}
+                {/* Switch for Current Location */}
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={useCurrentLocationAsPickup}
+                    onCheckedChange={handleCurrentLocationCheck}
                   />
-                </Autocomplete>
+                  <Label className="text-gray-300 text-xs">
+                    Current Location as pickup
+                  </Label>
+                </div>
 
+                {/* --- PICKUP INPUT --- */}
+                <div className="relative group">
+                  <Autocomplete
+                    onLoad={(autocomplete) => {
+                      autocomplete.addListener("place_changed", () => {
+                        const place = autocomplete.getPlace();
+                        setOrigin(place.formatted_address || "");
+                        setUseCurrentLocationAsPickup(false);
+                      });
+                    }}
+                  >
+                    <Input
+                      ref={originRef}
+                      value={origin}
+                      placeholder={loading ? "loading..." : "Pickup Location"}
+                      className="bg-gray-800 text-white"
+                      onChange={(e) => {
+                        setOrigin(e.target.value);
+                        setUseCurrentLocationAsPickup(false);
+                      }}
+                      onFocus={() => handleInputFocus("origin")}
+                      onBlur={handleInputBlur}
+                    />
+                  </Autocomplete>
+
+                  {/* Dropdown for Pickup */}
+                  {activeInput === "origin" && (
+                    <>
+                      <div className=" absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 overflow-hidden">
+                        <Button
+                          className="w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2 transition-colors"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            enableMapPicker("origin");
+                          }}
+                        >
+                          <MapPin className="h-4 w-4 text-blue-400" />
+                          Set pickup on map
+                        </Button>
+
+                        <Button
+                          className="w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2 transition-colors"
+             
+                        >
+                          <Star className="h-4 w-4 text-blue-400" />
+                          saved places
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* --- DESTINATION INPUT --- */}
+                <div className="relative group">
+                  <Autocomplete
+                    onLoad={(autocomplete) => {
+                      autocomplete.addListener("place_changed", () => {
+                        const place = autocomplete.getPlace();
+                        setDestination(place.formatted_address || "");
+                      });
+                    }}
+                  >
+                    <Input
+                      ref={destinationRef}
+                      value={destination}
+                      placeholder="Destination"
+                      className="bg-gray-800 text-white"
+                      onChange={(e) => setDestination(e.target.value)}
+                      onFocus={() => handleInputFocus("destination")}
+                      onBlur={handleInputBlur}
+                    />
+                  </Autocomplete>
+
+                  {/* Dropdown for Destination */}
+                  {activeInput === "destination" && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 overflow-hidden">
+                      <Button
+                        className="w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2 transition-colors"
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // Prevent blur
+                          enableMapPicker("destination");
+                        }}
+                      >
+                        <Navigation className="h-4 w-4 text-red-400" />
+                        Set drop-off on map
+                      </Button>
+                      <Button
+                        className="w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2 transition-colors"
+               
+                      >
+                        <Star className="h-4 w-4 text-blue-400" />
+                        saved places
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
                 <div className="flex gap-2">
                   <Button
                     className="w-full bg-blue-600 hover:bg-blue-700"
@@ -546,14 +585,16 @@ const RideBooking: React.FC = () => {
             </div>
           )}
 
-          {/* --- 2. MAP PICKER CONFIRMATION OVERLAY (Visible ONLY when Map Picking Mode is ON) --- */}
-          {isMapPickingMode && (
+          {/* --- CONFIRMATION CARD (Visible during Map Picking) --- */}
+          {pickingField && (
             <div className="absolute bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-[400px] z-20">
               <Card className="bg-gray-900 border-gray-700 text-white shadow-2xl">
                 <CardContent className="p-4 space-y-4">
                   <div className="text-center">
                     <h3 className="font-semibold text-lg text-blue-400">
-                      Choose your pickup spot
+                      {pickingField === "origin"
+                        ? "Choose Pickup Spot"
+                        : "Choose Drop-off Spot"}
                     </h3>
                     <p className="text-sm text-gray-400 mt-1 min-h-[40px] flex items-center justify-center">
                       {isResolvingAddress
@@ -568,7 +609,7 @@ const RideBooking: React.FC = () => {
                       disabled={!tempPickupLocation || isResolvingAddress}
                       onClick={confirmMapSelection}
                     >
-                      Confirm Pickup
+                      Confirm Location
                     </Button>
                     <Button
                       variant="destructive"
@@ -584,7 +625,7 @@ const RideBooking: React.FC = () => {
           )}
         </div>
 
-        {/* Vehicle Selection Sheet */}
+        {/* --- Vehicle Sheet (Unchanged logic, just kept structure) --- */}
         <Sheet open={showVehicleSheet} onOpenChange={setShowVehicleSheet}>
           <SheetContent
             side="bottom"
@@ -598,7 +639,6 @@ const RideBooking: React.FC = () => {
                 </p>
               )}
             </SheetHeader>
-
             <div className="mt-4 space-y-3">
               {vehicles.map((v) => (
                 <Card
@@ -635,7 +675,6 @@ const RideBooking: React.FC = () => {
                 </Card>
               ))}
             </div>
-
             <div className="sticky bottom-0 bg-gray-900 pt-4 mt-4 border-t border-gray-700">
               <Button
                 className="w-full h-12 text-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
