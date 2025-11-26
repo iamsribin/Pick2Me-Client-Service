@@ -5,6 +5,8 @@ enum UserApiEndpoints {
   UPLOAD_CHAT_FILE = "/users/me/upload-chat-file",
   BOOK_MY_CAB="/bookings/me/book-cab",
   GET_NEARBY_DRIVERS="/bookings/users/list-online-drivers",
+  GET_SAVED_PLACES="/users/me/saved-places",
+  ADD_SAVED_PLACE ="/users/me/add-saved-place",
   // auth 
   REGISTER = '/users/register',
   CHECK_USER ='/users/check-registration',

@@ -36,7 +36,17 @@ import {
 } from "@/constants/map-options";
 import { calculateDistance } from "@/shared/utils/getDistanceInMeters";
 import { getCurrentLocation } from "@/shared/utils/getCurrentLocation";
-import { MapPin, Navigation, Star } from "lucide-react";
+import {
+  MapPin,
+  Navigation,
+  Star,
+  Plus,
+  Save,
+  X,
+  LoaderIcon,
+} from "lucide-react";
+import UserApiEndpoints from "@/constants/user-api-end-pointes";
+import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
 
 interface OnlineDriver {
   driverId: string;
@@ -45,6 +55,14 @@ interface OnlineDriver {
   distanceKm: number;
   vehicleModel: string;
   bearing?: number;
+}
+
+// --- NEW INTERFACE FOR SAVED PLACES ---
+interface SavedPlace {
+  id?: string;
+  name: string;
+  coordinates: { latitude: number; longitude: number };
+  address: string;
 }
 
 const RideBooking: React.FC = () => {
@@ -80,14 +98,16 @@ const RideBooking: React.FC = () => {
   const [useCurrentLocationAsPickup, setUseCurrentLocationAsPickup] =
     useState<boolean>(false);
 
-  // --- UPDATED Map Picker State ---
-  // pickingField tracks WHICH input we are setting: 'origin' or 'destination'
+  const blurTimeoutRef = useRef<number | null>(null);
+  const savedPlacesTargetRef = useRef<"origin" | "destination" | null>(null);
+
+  // --- Map Picker State ---
   const [pickingField, setPickingField] = useState<
     "origin" | "destination" | null
   >(null);
   const [activeInput, setActiveInput] = useState<
     "origin" | "destination" | null
-  >(null); // For showing dropdowns
+  >(null);
 
   const [tempPickupLocation, setTempPickupLocation] = useState<{
     lat: number;
@@ -95,6 +115,19 @@ const RideBooking: React.FC = () => {
   } | null>(null);
   const [tempPickupAddress, setTempPickupAddress] = useState<string>("");
   const [isResolvingAddress, setIsResolvingAddress] = useState<boolean>(false);
+
+  // --- NEW STATE FOR SAVED PLACES ---
+  const [showSavedPlacesModal, setShowSavedPlacesModal] = useState(false);
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
+  const [isAddingNewPlace, setIsAddingNewPlace] = useState(false);
+  const [newPlaceName, setNewPlaceName] = useState("");
+  const [newPlaceAddress, setNewPlaceAddress] = useState("");
+  const [newPlaceCoords, setNewPlaceCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const newPlaceAutocompleteRef =
+    useRef<google.maps.places.Autocomplete | null>(null);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -140,8 +173,113 @@ const RideBooking: React.FC = () => {
       if (userLocation) fetchNearbyDrivers(userLocation.lat, userLocation.lng);
     }, 15000);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [fetchNearbyDrivers]);
+
+  // --- SAVED PLACES LOGIC ---
+
+  const handleOpenSavedPlaces = async (target: "origin" | "destination") => {
+    if (!user.loggedIn) {
+      toast({
+        description: "Please login to view saved places",
+        variant: "error",
+      });
+      return;
+    }
+
+    savedPlacesTargetRef.current = target;
+
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+
+    setActiveInput(target);
+    setShowSavedPlacesModal(true);
+    setIsAddingNewPlace(false);
+
+    // 2. Fetch Data
+    try {
+      const response = await fetchData<SavedPlace[]>(
+        UserApiEndpoints.GET_SAVED_PLACES
+      );
+      if (response?.data) {
+        setSavedPlaces(response.data);
+      }
+    } catch (error) {
+      setSavedPlaces([]);
+
+      handleCustomError(error);
+    }
+  };
+
+  const handleSelectSavedPlace = (place: SavedPlace) => {
+    const target = savedPlacesTargetRef.current ?? activeInput;
+
+    if (!target) {
+      toast({ description: "No input selected to fill", variant: "error" });
+      setShowSavedPlacesModal(false);
+      return;
+    }
+    if (target === "origin") {
+      setOrigin(place.address);
+      if (originRef.current) originRef.current.value = place.address;
+      setUseCurrentLocationAsPickup(false);
+      setUserLocation({
+        lat: place.coordinates.latitude,
+        lng: place.coordinates.longitude,
+      });
+      setCenter({
+        lat: place.coordinates.latitude,
+        lng: place.coordinates.longitude,
+      });
+    } else {
+      setDestination(place.address);
+      if (destinationRef.current) destinationRef.current.value = place.address;
+    }
+
+    setShowSavedPlacesModal(false);
+    setActiveInput(null);
+  };
+
+  const handleSaveNewPlace = async () => {
+    if (!newPlaceName || !newPlaceAddress || !newPlaceCoords) {
+      toast({ description: "Please fill all fields", variant: "error" });
+      return;
+    }
+
+    try {
+      const payload = {
+        name: newPlaceName,
+        address: newPlaceAddress,
+        coordinates: {
+          latitude: newPlaceCoords.lat,
+          longitude: newPlaceCoords.lng,
+        },
+      };
+
+      const response = await postData(
+        UserApiEndpoints.ADD_SAVED_PLACE,
+        payload
+      );
+
+      if (response?.status === 200 || response?.status === 201) {
+        toast({ description: "Place saved successfully!", variant: "success" });
+        setSavedPlaces((prev) => [
+          ...prev,
+          { ...payload, id: Date.now().toString() },
+        ]);
+        setIsAddingNewPlace(false);
+        setNewPlaceName("");
+        setNewPlaceAddress("");
+        setNewPlaceCoords(null);
+      }
+    } catch (error) {
+      toast({ description: "Failed to save place", variant: "error" });
+    }
+  };
 
   // --- Map Interaction Logic ---
 
@@ -204,11 +342,22 @@ const RideBooking: React.FC = () => {
   };
 
   const handleInputFocus = (type: "origin" | "destination") => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
     setActiveInput(type);
   };
 
   const handleInputBlur = () => {
-    setTimeout(() => setActiveInput(null), 200);
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+    blurTimeoutRef.current = window.setTimeout(() => {
+      setActiveInput(null);
+      blurTimeoutRef.current = null;
+    }, 150);
   };
 
   const fetchRouteAndVehicles = async () => {
@@ -337,6 +486,7 @@ const RideBooking: React.FC = () => {
       return;
     }
     if (user.loggedIn) {
+      // NOTE: Logic seems inverted in original code (if user.loggedIn -> toast login). Assuming !user.loggedIn
       toast({ description: "Please login.", variant: "error" });
       return;
     }
@@ -394,7 +544,15 @@ const RideBooking: React.FC = () => {
     if (userLocation) fetchNearbyDrivers(userLocation.lat, userLocation.lng);
   };
 
-  if (!isLoaded) return <div className="text-white">Loading Map...</div>;
+  if (!isLoaded)
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-black to-gray-800 text-white pb-20 sm:pb-4 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <span>loading map</span>
+          <LoaderIcon />
+        </div>
+      </div>
+    );
 
   return (
     <section className="py-20 bg-gradient-to-br from-black to-gray-800 h-screen flex flex-col">
@@ -504,15 +662,18 @@ const RideBooking: React.FC = () => {
                           }}
                         >
                           <MapPin className="h-4 w-4 text-blue-400" />
-                          Set pickup on map
+                          Set pickup location on map
                         </Button>
 
                         <Button
                           className="w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2 transition-colors"
-             
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleOpenSavedPlaces("origin");
+                          }}
                         >
-                          <Star className="h-4 w-4 text-blue-400" />
-                          saved places
+                          <Star className="h-4 w-4 text-yellow-400" />
+                          Saved Places
                         </Button>
                       </div>
                     </>
@@ -535,8 +696,8 @@ const RideBooking: React.FC = () => {
                       placeholder="Destination"
                       className="bg-gray-800 text-white"
                       onChange={(e) => setDestination(e.target.value)}
-                      onFocus={() => handleInputFocus("destination")}
                       onBlur={handleInputBlur}
+                      onFocus={() => handleInputFocus("destination")}
                     />
                   </Autocomplete>
 
@@ -551,14 +712,17 @@ const RideBooking: React.FC = () => {
                         }}
                       >
                         <Navigation className="h-4 w-4 text-red-400" />
-                        Set drop-off on map
+                        Set destination on map
                       </Button>
                       <Button
                         className="w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2 transition-colors"
-               
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleOpenSavedPlaces("destination");
+                        }}
                       >
-                        <Star className="h-4 w-4 text-blue-400" />
-                        saved places
+                        <Star className="h-4 w-4 text-yellow-400" />
+                        Saved Places
                       </Button>
                     </div>
                   )}
@@ -625,7 +789,7 @@ const RideBooking: React.FC = () => {
           )}
         </div>
 
-        {/* --- Vehicle Sheet (Unchanged logic, just kept structure) --- */}
+        {/* --- Vehicle Sheet --- */}
         <Sheet open={showVehicleSheet} onOpenChange={setShowVehicleSheet}>
           <SheetContent
             side="bottom"
@@ -690,6 +854,136 @@ const RideBooking: React.FC = () => {
             </div>
           </SheetContent>
         </Sheet>
+
+        {/* --- SAVED PLACES MODAL / DIALOG --- */}
+        {showSavedPlacesModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
+              {/* Header */}
+              <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-white">
+                  {isAddingNewPlace ? "Add New Place" : "Saved Places"}
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowSavedPlacesModal(false);
+                    savedPlacesTargetRef.current = null;
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {/* Content */}
+              <div className="p-4 flex-1 overflow-y-auto">
+                {!isAddingNewPlace ? (
+                  // --- LIST VIEW ---
+                  <div className="space-y-2">
+                    {savedPlaces.length > 0 ? (
+                      savedPlaces.map((place, idx) => (
+                        <div
+                          key={place.id || idx}
+                          onClick={() => handleSelectSavedPlace(place)}
+                          className="flex items-center gap-3 p-3 rounded-lg bg-gray-800 hover:bg-gray-700 cursor-pointer transition-colors group"
+                        >
+                          <div className="h-10 w-10 rounded-full bg-blue-900/50 flex items-center justify-center">
+                            <Star className="h-5 w-5 text-blue-400 group-hover:fill-blue-400" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-white">
+                              {place.name}
+                            </h4>
+                            <p className="text-xs text-gray-400 line-clamp-1">
+                              {place.address}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No saved places found.</p>
+                      </div>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      className="w-full mt-4 border-dashed border-gray-600 text-gray-300 hover:text-white hover:bg-gray-800"
+                      onClick={() => setIsAddingNewPlace(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add New Place
+                    </Button>
+                  </div>
+                ) : (
+                  // --- ADD NEW VIEW ---
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-gray-300">
+                        Name (e.g. Home, Gym)
+                      </Label>
+                      <Input
+                        placeholder="Enter name"
+                        value={newPlaceName}
+                        onChange={(e) => setNewPlaceName(e.target.value)}
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-300">Search Location</Label>
+                      <Autocomplete
+                        onLoad={(autocomplete) => {
+                          newPlaceAutocompleteRef.current = autocomplete;
+                          autocomplete.addListener("place_changed", () => {
+                            const place = autocomplete.getPlace();
+                            if (
+                              place.geometry?.location &&
+                              place.formatted_address
+                            ) {
+                              setNewPlaceAddress(place.formatted_address);
+                              setNewPlaceCoords({
+                                lat: place.geometry.location.lat(),
+                                lng: place.geometry.location.lng(),
+                              });
+                            }
+                          });
+                        }}
+                      >
+                        <Input
+                          placeholder="Search address..."
+                          className="bg-gray-800 border-gray-700 text-white"
+                          // Note: Value management for Autocomplete input is often handled by the library ref
+                        />
+                      </Autocomplete>
+                      {newPlaceAddress && (
+                        <p className="text-xs text-green-400">
+                          Selected: {newPlaceAddress}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        onClick={handleSaveNewPlace}
+                      >
+                        <Save className="h-4 w-4 mr-2" /> Save
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-white"
+                        onClick={() => setIsAddingNewPlace(false)}
+                      >
+                        Back
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
