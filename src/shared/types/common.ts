@@ -5,10 +5,6 @@ export interface Coordinates {
   longitude: number;
 }
 
-export interface ResponseCom{
- data :any
-}
-
 export interface AdminAllowedVehicleModel {
   _id: string;
   vehicleModel: string;
@@ -77,9 +73,13 @@ export interface Previews {
 
 export type SocketEvent =
   | { type: 'driver.location'; payload: DriverLocationMessage }
-  | { type: 'ride.status'; payload: RideStatusMessage }
+  // | { type: 'ride.status'; payload: RideStatusMessage }
   | { type: 'notification'; payload: NotificationMessage }
   | { type: string; payload: any }; 
+
+  export interface ResponseCom{
+ data :any
+}
 
 export interface DriverLocationMessage {
   rideId: string;
@@ -93,20 +93,50 @@ export interface DriverLocationMessage {
   id?: string;  
 }
 
-export interface RideStatusMessage {
-  rideId: string;
-  status: 'requested'|'accepted'|'arrived'|'started'|'completed'|'cancelled';
-  updatedAt: string;
-  meta?: Record<string, any>;
-  id: string; 
+export interface LocationCoordinates {
+    address: string;
+    latitude: number;
+    longitude: number;
+}
+export interface UserInfo {
+  userId: string;
+  userName: string;
+  userNumber: string;
+  userProfile: string;
 }
 
-export interface PaymentStatus {
-  status: 'ide'|'failed'|'success'|'pending';
-  updatedAt: string;
-  meta?: Record<string, any>;
-  id: string; 
+export interface DriverInfo {
+  driverId: string;
+  driverName: string;
+  driverNumber: string;
+  driverProfile: string;
 }
+export interface RideDetails {
+  id: string;
+  user: UserInfo;
+  driver?:DriverInfo;
+  pin: number;
+  pickupCoordinates: LocationCoordinates;
+  dropOffCoordinates: LocationCoordinates;
+  vehicleModel: string;
+  price: number;
+  duration: string;
+  distanceInfo: { distance: string; distanceInKm: number };
+
+  status: "Pending" | "Accepted" | "InRide" | "Completed" | "Cancelled";
+  paymentStatus: "Pending" | "Failed" | "Completed" | "idle";
+  paymentMode: "Cash" | "Wallet" | "Strip";
+  rideId: string;
+  date: Date;
+
+}
+
+// export interface PaymentStatus {
+//   status: 'ide'|'failed'|'success'|'pending';
+//   updatedAt: string;
+//   meta?: Record<string, any>;
+//   id: string; 
+// }
 
 export interface NotificationMessage {
   id: string;

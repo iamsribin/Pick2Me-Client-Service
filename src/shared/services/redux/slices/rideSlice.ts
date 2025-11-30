@@ -1,17 +1,20 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { DriverLocationMessage, PaymentStatus, RideStatusMessage } from '@/shared/types/common';
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import type { DriverLocationMessage, RideDetails } from "@/shared/types/common";
 
 type PositionsMap = Record<string, DriverLocationMessage[]>; // rideId -> positions
 
 const MAX_BUFFER = 200;
 
 const slice = createSlice({
-  name: 'ride',
+  name: "ride",
   initialState: {
+    // status: {} as Record<string, RideStatusMessage | undefined>,
+    // paymentStatus: {} as Record<string, PaymentStatus| undefined>
     latest: {} as Record<string, DriverLocationMessage | undefined>,
+    rideDetails: {} as RideDetails,
     positions: {} as PositionsMap,
-    status: {} as Record<string, RideStatusMessage | undefined>,
-    paymentStatus: {} as Record<string, PaymentStatus| undefined>
+    status: "" as "Pending" | "Accepted" | "InRide" | "Completed" | "Cancelled",
+    chat: {} as any,
   },
   reducers: {
     rideLocationReceived(state, action: PayloadAction<DriverLocationMessage>) {
@@ -19,9 +22,14 @@ const slice = createSlice({
       const arr = state.positions[p.rideId] ?? [];
       const last = arr[arr.length - 1];
 
-      if (p.id && arr.some(a => a.id === p.id)) return;
+      if (p.id && arr.some((a) => a.id === p.id)) return;
 
-      if (last && p.seq !== undefined && last.seq !== undefined && p.seq <= last.seq) {
+      if (
+        last &&
+        p.seq !== undefined &&
+        last.seq !== undefined &&
+        p.seq <= last.seq
+      ) {
         return;
       }
 
@@ -30,14 +38,13 @@ const slice = createSlice({
       state.positions[p.rideId] = arr;
       state.latest[p.rideId] = p;
     },
-    rideStatusReceived(state, action: PayloadAction<RideStatusMessage>) {
+    rideCreate(state, action: PayloadAction<RideDetails>) {
       const s = action.payload;
-      const current = state.status[s.rideId];
-      if (current && current.updatedAt > s.updatedAt) return;
-      state.status[s.rideId] = s;
+      state.rideDetails = s;
+      state.status = s.status;
     },
   },
 });
 
-export const { rideLocationReceived, rideStatusReceived } = slice.actions;
+export const { rideLocationReceived, rideCreate } = slice.actions;
 export default slice;

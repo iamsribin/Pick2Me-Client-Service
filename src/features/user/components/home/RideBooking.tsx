@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   GoogleMap,
   Marker,
@@ -46,7 +45,7 @@ import {
   LoaderIcon,
 } from "lucide-react";
 import UserApiEndpoints from "@/constants/user-api-end-pointes";
-import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
+import { rideCreate } from "@/shared/services/redux/slices/rideSlice";
 
 interface OnlineDriver {
   driverId: string;
@@ -57,7 +56,6 @@ interface OnlineDriver {
   bearing?: number;
 }
 
-// --- NEW INTERFACE FOR SAVED PLACES ---
 interface SavedPlace {
   id?: string;
   name: string;
@@ -66,7 +64,6 @@ interface SavedPlace {
 }
 
 const RideBooking: React.FC = () => {
-  // --- Existing State ---
   const [center, setCenter] = useState<{ lat: number; lng: number }>({
     lat: 13.003371,
     lng: 77.589134,
@@ -89,7 +86,7 @@ const RideBooking: React.FC = () => {
     duration: string;
     distanceInKm: number;
   } | null>(null);
-
+ const dispatch = useDispatch()
   const [nearbyDrivers, setNearbyDrivers] = useState<OnlineDriver[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
@@ -98,10 +95,10 @@ const RideBooking: React.FC = () => {
   const [useCurrentLocationAsPickup, setUseCurrentLocationAsPickup] =
     useState<boolean>(false);
 
+
   const blurTimeoutRef = useRef<number | null>(null);
   const savedPlacesTargetRef = useRef<"origin" | "destination" | null>(null);
 
-  // --- Map Picker State ---
   const [pickingField, setPickingField] = useState<
     "origin" | "destination" | null
   >(null);
@@ -116,7 +113,6 @@ const RideBooking: React.FC = () => {
   const [tempPickupAddress, setTempPickupAddress] = useState<string>("");
   const [isResolvingAddress, setIsResolvingAddress] = useState<boolean>(false);
 
-  // --- NEW STATE FOR SAVED PLACES ---
   const [showSavedPlacesModal, setShowSavedPlacesModal] = useState(false);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [isAddingNewPlace, setIsAddingNewPlace] = useState(false);
@@ -129,12 +125,13 @@ const RideBooking: React.FC = () => {
   const newPlaceAutocompleteRef =
     useRef<google.maps.places.Autocomplete | null>(null);
 
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
   const originRef = useRef<HTMLInputElement>(null);
   const destinationRef = useRef<HTMLInputElement>(null);
 
   const { user } = useSelector((state: RootState) => ({ user: state.user }));
+  const { RideData } = useSelector((state: RootState) => ({
+    RideData: state.RideData,
+  }));
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
     libraries,
@@ -178,8 +175,6 @@ const RideBooking: React.FC = () => {
     };
   }, [fetchNearbyDrivers]);
 
-  // --- SAVED PLACES LOGIC ---
-
   const handleOpenSavedPlaces = async (target: "origin" | "destination") => {
     if (!user.loggedIn) {
       toast({
@@ -200,7 +195,6 @@ const RideBooking: React.FC = () => {
     setShowSavedPlacesModal(true);
     setIsAddingNewPlace(false);
 
-    // 2. Fetch Data
     try {
       const response = await fetchData<SavedPlace[]>(
         UserApiEndpoints.GET_SAVED_PLACES
@@ -277,11 +271,9 @@ const RideBooking: React.FC = () => {
         setNewPlaceCoords(null);
       }
     } catch (error) {
-      toast({ description: "Failed to save place", variant: "error" });
+      handleCustomError(error);
     }
   };
-
-  // --- Map Interaction Logic ---
 
   const handleMapClick = async (e: google.maps.MapMouseEvent) => {
     if (!pickingField || !e.latLng) return;
@@ -485,10 +477,17 @@ const RideBooking: React.FC = () => {
       toast({ description: "Vehicle unavailable." });
       return;
     }
-    if (user.loggedIn) {
-      // NOTE: Logic seems inverted in original code (if user.loggedIn -> toast login). Assuming !user.loggedIn
+    if (!user.loggedIn) {
       toast({ description: "Please login.", variant: "error" });
       return;
+    }
+
+    if (RideData.status) {      
+      toast({
+        description: `You already have a ride that is ${RideData.status.toLowerCase()}. Finish or cancel it before booking a new one.`,
+        variant: "error",
+      });
+      // return;
     }
 
     setIsSearching(true);
@@ -518,12 +517,15 @@ const RideBooking: React.FC = () => {
         ApiEndpoints.BOOK_MY_CAB,
         bookingPayload
       );
+      
       if (response?.status === 201 || response?.status === 200) {
         toast({ description: "Ride request sent!", variant: "success" });
+        dispatch(rideCreate(response.data));
         setShowVehicleSheet(false);
+        handleClear();
       }
     } catch (e) {
-      toast({ description: "Booking failed" });
+      handleCustomError(e);
     } finally {
       setIsSearching(false);
     }
@@ -828,7 +830,9 @@ const RideBooking: React.FC = () => {
                       <div>
                         <h3 className="font-bold">{v.name}</h3>
                         <p className="text-xs text-gray-400">
-                          {v.isAvailable ? v.eta : "Unavailable nearby"}
+                          {v.isAvailable
+                            ? v.eta
+                            : "No drivers available nearby"}
                         </p>
                       </div>
                     </div>
@@ -910,7 +914,7 @@ const RideBooking: React.FC = () => {
 
                     <Button
                       variant="outline"
-                      className="w-full mt-4 border-dashed border-gray-600 text-gray-300 hover:text-white hover:bg-gray-800"
+                      className="w-full mt-4 border-dashed border-gray-600 text-black-300 hover:text-white hover:bg-gray-800"
                       onClick={() => setIsAddingNewPlace(true)}
                     >
                       <Plus className="h-4 w-4 mr-2" /> Add New Place

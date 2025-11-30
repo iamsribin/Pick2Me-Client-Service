@@ -14,10 +14,9 @@ const Navbar: React.FC = () => {
   const navigate = useNavigate();
   
   const user = store.getState().user.role === "User"
-  // const rideData = useSelector((state: RootState) => state.RideMap.rideData);
+  const rideData = useSelector((state: RootState) => state.RideData.status);
   // const paymentStatus = useSelector((state: RootState) => state.RideMap.paymentStatus);
     
-const rideData = null;
 const paymentStatus = null;
   useEffect(() => {
     const handleScroll = () => {
@@ -122,7 +121,7 @@ return (
                   } hover:bg-green-500`}
                 >
                   <Navigation size={18} className="text-white" />
-                  <span className="text-white text-sm">Ride Map</span>
+                  <span className="text-white text-sm">Track your ride</span>
                   <span className={`w-2 h-2 rounded-full ${
                     isPulsing ? 'bg-white' : 'bg-green-300'
                   } transition-colors duration-300`} />
