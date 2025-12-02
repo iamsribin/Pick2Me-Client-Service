@@ -7,6 +7,7 @@ import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
 import { useDriverSocketEvents } from "@/shared/hooks/useDriverSocketEvents";
 import { LocationProvider } from "@/context/locationProvider";
 import DriverWallet from "../pages/WallerPage";
+import RideRequestModal from "../components/RideRequestModal";
 
 const DriverLoginPage = lazy(() => import("../pages/auth/DriverLoginPage"));
 const DriverSignupPage = lazy(() => import("../pages/auth/DriverSignupPage"));
@@ -29,6 +30,7 @@ function DriverRoutes() {
   useDriverSocketEvents();
   return (
     <>
+      <RideRequestModal />
       <Suspense fallback={<GlobalLoading {...loaderProps} />}>
         <LocationProvider>
           <Routes>

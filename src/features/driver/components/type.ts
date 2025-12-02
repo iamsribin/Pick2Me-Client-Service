@@ -1,23 +1,23 @@
-import { CustomerDetails, LocationCoordinates } from "@/shared/types/common";
+// import { LocationCoordinates } from "@/shared/types/common";
 
-interface RideDetails {
-  rideId: string;
-  estimatedDistance: string;
-  estimatedDuration: string;
-  fareAmount: number;
-  vehicleType: string;
-  securityPin: number;
-}
+// interface RideDetails {
+//   rideId: string;
+//   estimatedDistance: string;
+//   estimatedDuration: string;
+//   fareAmount: number;
+//   vehicleType: string;
+//   securityPin: number;
+// }
 
-interface BookingDetails {
-  bookingId: string;
-  userId: string;
-  pickupLocation: LocationCoordinates;
-  dropoffLocation: LocationCoordinates;
-  rideDetails: RideDetails;
-  status: "pending" | "accepted" | "declined" | "cancelled";
-  createdAt: string;
-}
+// interface BookingDetails {
+//   bookingId: string;
+//   userId: string;
+//   pickupLocation: LocationCoordinates;
+//   dropoffLocation: LocationCoordinates;
+//   rideDetails: RideDetails;
+//   status: "pending" | "accepted" | "declined" | "cancelled";
+//   createdAt: string;
+// }
 
 // interface RideNotificationProps {
 //   customer: CustomerDetails;
@@ -31,4 +31,4 @@ interface BookingDetails {
 //   onDecline: () => void;
 // }
 
-export type {RideDetails}
+// export type {RideDetails}

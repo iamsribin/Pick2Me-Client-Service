@@ -5,6 +5,7 @@ import { rideLocationReceived } from "../services/redux/slices/rideSlice";
 import { notificationReceived } from "../services/redux/slices/notificationSlice";
 import { RootState } from "../services/redux/store";
 import { toast } from "./use-toast";
+import { showRideRequest } from "../services/redux/slices/rideRequestSlice";
 
 export function useDriverSocketEvents() {
   const dispatch = useDispatch();
@@ -37,8 +38,9 @@ export function useDriverSocketEvents() {
       toast({ description: data.message, variant: "error" });
     });
 
-    const offHai = SocketService.on("hai", (data) => {
-      console.log("hai", data);
+    const offRideRequest = SocketService.on("ride:request", (payload) => {
+      console.log("ride:request", payload);
+      dispatch(showRideRequest({ ride: payload, timeoutSec: payload.timeout ?? 30 }));
     });
 
     const offDriverLocation = SocketService.on("driver.location", (data) => {
@@ -51,7 +53,7 @@ export function useDriverSocketEvents() {
     return () => {
       offNotification();
       offDriverLocation();
-      offHai();
+      offRideRequest();
       offError();
       if (flushTimerRef.current) {
         window.clearTimeout(flushTimerRef.current);

@@ -7,6 +7,7 @@
     import notificationSlice from "./slices/notificationSlice";
     import rideSlice from "./slices/rideSlice";
     import UserSlice from "./slices/userSlice";
+    import rideRequestSlice from "./slices/rideRequestSlice";
     import { socketMiddleware } from "@/shared/middlewares/socketMiddleware";
 
     const RideDataPersistConfig={key:"RideData",storage,version:1}
@@ -22,6 +23,7 @@
             notification: NotificationReducer,
             RideData:RideDataPersistReducer,
             user: UserPersistReducer,
+            rideRequest:rideRequestSlice
         },
         middleware: (getDefaultMiddleware) => {
             const middleware = getDefaultMiddleware({
