@@ -49,6 +49,8 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const isTrackingRef = useRef<boolean>(!!isOnline);
 
   const getKey = (isHeartbeat = true) => {
+    console.log("rideData==",rideData);
+    
     if (isHeartbeat) {
       return rideData ? "inride:driver:heartbeat" : "driver:heartbeat";
     } else {

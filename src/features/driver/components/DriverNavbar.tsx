@@ -30,14 +30,14 @@ const DriverNavbar = () => {
   const notifications = useSelector(
     (state: RootState) => state.notification.items
   );
+    const rideData = useSelector(
+    (state: RootState) => state.RideData.rideDetails
+  );
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const rideData = {
-    paymentStatus: "pending",
-    isOpen: false,
-  };
+
   const isPaymentPending =
-    rideData.paymentStatus === "pending" || rideData.paymentStatus === "failed";
+    rideData.paymentStatus === "Pending" || rideData.paymentStatus === "Failed";
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
@@ -75,7 +75,7 @@ const DriverNavbar = () => {
   return (
     <>
       {/* Status Bar - Desktop View */}
-      {(rideData.isOpen || isPaymentPending) && (
+      {(rideData.status || isPaymentPending) && (
         <div className="hidden sm:block fixed top-4 right-6 z-30">
           {isPaymentPending ? (
             <button
@@ -84,7 +84,7 @@ const DriverNavbar = () => {
             >
               <AlertCircle size={18} className="text-black" />
               <span className="text-black">
-                {rideData?.paymentStatus === "failed"
+                {rideData?.paymentStatus === "Failed"
                   ? "Payment Failed"
                   : "Payment Pending"}
               </span>
@@ -213,7 +213,7 @@ const DriverNavbar = () => {
         </NavigationMenu>
 
         {/* Mobile Status Buttons */}
-        {(rideData.isOpen || isPaymentPending) && (
+        {(rideData.status || isPaymentPending) && (
           <div className="sm:hidden mt-4 pt-4 border-t-2 border-[#fdb726]/30 space-y-2">
             {isPaymentPending ? (
               <button
@@ -222,7 +222,7 @@ const DriverNavbar = () => {
               >
                 <AlertCircle size={18} className="text-[#000000]" />
                 <span className="text-[#000000]">
-                  {rideData.paymentStatus === "failed"
+                  {rideData.paymentStatus === "Failed"
                     ? "Payment Failed"
                     : "Payment Pending"}
                 </span>
