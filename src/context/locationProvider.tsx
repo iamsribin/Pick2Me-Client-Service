@@ -1,4 +1,10 @@
-import React, { createContext, useEffect, useRef, useCallback, ReactNode } from "react";
+import React, {
+  createContext,
+  useEffect,
+  useRef,
+  useCallback,
+  ReactNode,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { emitSocket } from "@/shared/utils/emitSocket";
 import { toast } from "@/shared/hooks/use-toast";
@@ -16,7 +22,9 @@ export interface LocationContextValue {
   lastLocation: LocationUpdate | null;
 }
 
-export const LocationContext = createContext<LocationContextValue | undefined>(undefined);
+export const LocationContext = createContext<LocationContextValue | undefined>(
+  undefined
+);
 
 interface LocationProviderProps {
   children: ReactNode;
@@ -33,11 +41,22 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 }) => {
   const dispatch = useDispatch();
   const isOnline = useSelector((s: RootState) => s.user.isOnline);
+  const rideData = useSelector((s: RootState) => s.RideData.status);
 
   const watchIdRef = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
   const lastLocationRef = useRef<LocationUpdate | null>(null);
   const isTrackingRef = useRef<boolean>(!!isOnline);
+
+  const getKey = (isHeartbeat = true) => {
+    if (isHeartbeat) {
+      return rideData ? "inride:driver:heartbeat" : "driver:heartbeat";
+    } else {
+      return rideData
+        ? "inride:driver:location:update"
+        : "driver:location:update";
+    }
+  }; 
 
   useEffect(() => {
     isTrackingRef.current = !!isOnline;
@@ -48,7 +67,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
     const heartbeatInterval = setInterval(() => {
       store.dispatch(
-        emitSocket("driver:heartbeat", {
+        emitSocket(getKey(), {
           timestamp: Date.now(),
           location: lastLocationRef.current,
         }) as any
@@ -57,7 +76,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
     return () => clearInterval(heartbeatInterval);
   }, [autoSyncWithRedux, isOnline]);
-
 
   const sendLocationUpdate = useCallback(
     (location: LocationUpdate) => {
@@ -78,7 +96,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       }
 
       dispatch(
-        emitSocket("driver:location:update", {
+        emitSocket(getKey(false), {
           latitude: location.latitude,
           longitude: location.longitude,
           accuracy: location.accuracy,
@@ -94,7 +112,10 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
   const startTracking = useCallback((): boolean => {
     if (!navigator.geolocation) {
-      toast({ description: "Geolocation is not supported by your browser", variant: "error" });
+      toast({
+        description: "Geolocation is not supported by your browser",
+        variant: "error",
+      });
       return false;
     }
 
@@ -123,7 +144,8 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       let message = "Unable to get your location";
       switch (error.code) {
         case error.PERMISSION_DENIED:
-          message = "Location permission denied. Please enable location access.";
+          message =
+            "Location permission denied. Please enable location access.";
           break;
         case error.POSITION_UNAVAILABLE:
           message = "Location information unavailable";
@@ -138,7 +160,11 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
     try {
       isTrackingRef.current = true;
-      watchIdRef.current = navigator.geolocation.watchPosition(successHandler, errorHandler, options);
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        successHandler,
+        errorHandler,
+        options
+      );
       return true;
     } catch (error) {
       console.error("Error starting location tracking:", error);
@@ -172,5 +198,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     lastLocation: lastLocationRef.current,
   };
 
-  return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;
+  return (
+    <LocationContext.Provider value={value}>
+      {children}
+    </LocationContext.Provider>
+  );
 };

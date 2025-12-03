@@ -32,10 +32,17 @@ export function useUserSocketEvents() {
     });
 
     const offRide = SocketService.on("ride:accepted", (data) => {
-            console.log("ride:accepted",data);
+      console.log("ride:accepted", data);
 
       dispatch(notificationReceived(data.userNotification));
       dispatch(rideCreate(data.rideData));
+    });
+
+    const offRideCancel = SocketService.on("ride:canceled", (data) => {
+      console.log("ride:canceled", data);
+
+      dispatch(notificationReceived(data.userNotification));
+      dispatch(clear);
     });
 
     const offError = SocketService.on("error", (data) => {
