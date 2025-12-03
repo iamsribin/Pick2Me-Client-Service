@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import SocketService from "@/shared/services/socketService";
 import { useDispatch, useSelector } from "react-redux";
-import { rideLocationReceived } from "../services/redux/slices/rideSlice";
+import { rideCreate, rideLocationReceived } from "../services/redux/slices/rideSlice";
 import { notificationReceived } from "../services/redux/slices/notificationSlice";
 import { RootState } from "../services/redux/store";
 import { toast } from "./use-toast";
@@ -40,7 +40,16 @@ export function useDriverSocketEvents() {
 
     const offRideRequest = SocketService.on("ride:request", (payload) => {
       console.log("ride:request", payload);
-      dispatch(showRideRequest({ ride: payload, timeoutSec: payload.timeout ?? 30 }));
+      dispatch(
+        showRideRequest({ ride: payload, timeoutSec: payload.timeout ?? 30 })
+      );
+    });
+
+    const offRide = SocketService.on("ride:accepted", (data) => {
+      console.log("ride:accepted",data);
+      
+      dispatch(notificationReceived(data.driverNotification));
+      dispatch(rideCreate(data.rideData));
     });
 
     const offDriverLocation = SocketService.on("driver.location", (data) => {
@@ -55,6 +64,7 @@ export function useDriverSocketEvents() {
       offDriverLocation();
       offRideRequest();
       offError();
+      offRide()
       if (flushTimerRef.current) {
         window.clearTimeout(flushTimerRef.current);
         flushTimerRef.current = null;
