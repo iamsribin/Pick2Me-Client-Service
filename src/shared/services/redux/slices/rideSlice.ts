@@ -13,7 +13,7 @@ const slice = createSlice({
     latest: {} as Record<string, DriverLocationMessage | undefined>,
     rideDetails: {} as RideDetails,
     positions: {} as PositionsMap,
-    status: "" as "Pending" | "Accepted" | "InRide" | "Completed" | "Cancelled",
+    status: "" as "Pending" | "Accepted" | "InRide" | "Completed" | "Cancelled" | "",
     chat: {} as any,
   },
   reducers: {
@@ -43,8 +43,15 @@ const slice = createSlice({
       state.rideDetails = s;
       state.status = s.status;
     },
+     clearRide(state) {
+      state.latest = {};
+      state.positions = {};
+      state.rideDetails = {} as RideDetails;
+      state.status = "";
+      state.chat = {};
+    },
   },
 });
 
-export const { rideLocationReceived, rideCreate } = slice.actions;
+export const { rideLocationReceived, rideCreate, clearRide } = slice.actions;
 export default slice;

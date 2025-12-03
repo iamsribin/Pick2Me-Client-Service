@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import SocketService from "@/shared/services/socketService";
 import { useDispatch } from "react-redux";
 import {
+  clearRide,
   rideCreate,
   rideLocationReceived,
 } from "../services/redux/slices/rideSlice";
@@ -38,11 +39,10 @@ export function useUserSocketEvents() {
       dispatch(rideCreate(data.rideData));
     });
 
-    const offRideCancel = SocketService.on("ride:canceled", (data) => {
+    const offClearRide = SocketService.on("ride:canceled", (data) => {
       console.log("ride:canceled", data);
-
       dispatch(notificationReceived(data.userNotification));
-      dispatch(clear);
+      dispatch(clearRide());
     });
 
     const offError = SocketService.on("error", (data) => {
@@ -61,6 +61,7 @@ export function useUserSocketEvents() {
       offDriverLocation();
       offError();
       offRide();
+      offClearRide();
       if (flushTimerRef.current) {
         window.clearTimeout(flushTimerRef.current);
         flushTimerRef.current = null;

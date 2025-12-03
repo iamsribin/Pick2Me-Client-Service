@@ -123,7 +123,7 @@ export interface RideDetails {
   duration: string;
   distanceInfo: { distance: string; distanceInKm: number };
 
-  status: "Pending" | "Accepted" | "InRide" | "Completed" | "Cancelled";
+  status: ""| "Pending" | "Accepted" | "InRide" | "Completed" | "Cancelled";
   paymentStatus: "Pending" | "Failed" | "Completed" | "idle";
   paymentMode: "Cash" | "Wallet" | "Strip";
   rideId: string;
