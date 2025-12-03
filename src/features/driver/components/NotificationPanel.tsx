@@ -18,12 +18,14 @@ interface NotificationPanelProps {
   isOpen: boolean;
   onClose: () => void;
   isMobile?: boolean;
+  position?: "left" | "right"; // Add position prop for alignment
 }
 
 const NotificationPanel: React.FC<NotificationPanelProps> = ({
   isOpen,
   onClose,
   isMobile = false,
+  position = "right", // Default to right for driver side
 }) => {
   const dispatch = useDispatch();
   const notificationRef = useRef<HTMLDivElement | null>(null);
@@ -74,11 +76,13 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
 
   const handleClearNotification = async (notificationId: string) => {
     try {
-      const response = await deleteData(CommonApiEndPoint.CLEAR_NOTIFICATION.replace(":id",notificationId));
+      const response = await deleteData(
+        CommonApiEndPoint.CLEAR_NOTIFICATION.replace(":id", notificationId)
+      );
       if (response?.status === 200) {
         dispatch(clearNotification(notificationId));
       }
-      toast({description:"notification cleared successfully"})
+      toast({ description: "notification cleared successfully" });
     } catch (error) {
       handleCustomError(error);
     }
@@ -86,11 +90,13 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
 
   const handleMarkAllAsRead = async () => {
     try {
-      const response = await patchData(CommonApiEndPoint.MARK_ALL_AS_READ)
+      const response = await patchData(CommonApiEndPoint.MARK_ALL_AS_READ);
       if (response?.status === 200) {
         dispatch(markAllAsRead());
       }
-      toast({description:"Everything was marked as read successfully."})
+      toast({
+        description: "Everything was marked as read successfully.",
+      });
     } catch (error) {
       handleCustomError(error);
     }
@@ -98,14 +104,16 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
 
   const handleClearAll = async () => {
     try {
-      const response = await deleteData(CommonApiEndPoint.CLEAR_ALL_NOTIFICATION);
+      const response = await deleteData(
+        CommonApiEndPoint.CLEAR_ALL_NOTIFICATION
+      );
       if (response?.status === 200) {
         dispatch(clearAllNotifications());
         onClose();
       }
-      toast({description:"cleared all notification successfully"})
+      toast({ description: "cleared all notification successfully" });
     } catch (error) {
-      handleCustomError(error)
+      handleCustomError(error);
     }
   };
 
@@ -135,7 +143,9 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
     return (
       <div
         ref={notificationRef}
-        className="absolute left-0 top-full mt-2 w-96 bg-gradient-to-b from-[#ffffff] to-[#e8c58c]/20 rounded-2xl shadow-2xl border-2 border-[#fdb726]/30 overflow-hidden z-50"
+        className={`absolute ${
+          position === "left" ? "right-0" : "left-0"
+        } top-full mt-2 w-96 bg-gradient-to-b from-[#ffffff] to-[#e8c58c]/20 rounded-2xl shadow-2xl border-2 border-[#fdb726]/30 overflow-hidden z-50`}
       >
         <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-[#fdb726] to-[#f5a623] border-b-2 border-[#000000]/10">
           <h3 className="font-bold text-[#000000] text-base">Notifications</h3>

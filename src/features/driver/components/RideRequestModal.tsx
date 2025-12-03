@@ -91,7 +91,7 @@ export default function RideRequestModal() {
     if (!request) return;
     emitResponse("accept");
     // optimistic: navigate to ride screen or show spinner while server responds
-    // dispatch(clearRideRequest());
+    dispatch(clearRideRequest());
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -103,7 +103,7 @@ export default function RideRequestModal() {
   const handleDecline = (reason = "declined") => {
     if (!request) return;
     emitResponse("decline", reason);
-    // dispatch(clearRideRequest());
+    dispatch(clearRideRequest());
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
