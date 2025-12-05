@@ -11,19 +11,19 @@ import { toast } from "./use-toast";
 
 export function useUserSocketEvents() {
   const dispatch = useDispatch();
-  const latestPosRef = useRef<any>(null);
-  const flushTimerRef = useRef<number | null>(null);
+  // const latestPosRef = useRef<any>(null);
+  // const flushTimerRef = useRef<number | null>(null);
 
-  const flush = () => {
-    if (latestPosRef.current) {
-      dispatch(rideLocationReceived(latestPosRef.current));
-      latestPosRef.current = null;
-    }
-    if (flushTimerRef.current) {
-      window.clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = null;
-    }
-  };
+  // const flush = () => {
+  //   if (latestPosRef.current) {
+  //     dispatch(rideLocationReceived(latestPosRef.current));
+  //     latestPosRef.current = null;
+  //   }
+  //   if (flushTimerRef.current) {
+  //     window.clearTimeout(flushTimerRef.current);
+  //     flushTimerRef.current = null;
+  //   }
+  // };
 
   useEffect(() => {
     SocketService.connect();
@@ -49,24 +49,29 @@ export function useUserSocketEvents() {
       toast({ description: data.message, variant: "error" });
     });
 
-    const offDriverLocation = SocketService.on("driver.location", (data) => {
-      latestPosRef.current = data;
-      if (!flushTimerRef.current) {
-        flushTimerRef.current = window.setTimeout(flush, 200);
-      }
-    });
+        const offLocationUpdate = SocketService.on("driver:location:update", (data) => {
+          console.log("driver:location:update",data);
+          dispatch(rideLocationReceived({...data, serverTs: data.serverTs || Date.now()}))
+        });
+
+    // const offDriverLocation = SocketService.on("driver.location", (data) => {
+    //   latestPosRef.current = data;
+    //   if (!flushTimerRef.current) {
+    //     flushTimerRef.current = window.setTimeout(flush, 200);
+    //   }
+    // });
 
     return () => {
       offNotification();
-      offDriverLocation();
+      offLocationUpdate();
       offError();
       offRide();
       offClearRide();
-      if (flushTimerRef.current) {
-        window.clearTimeout(flushTimerRef.current);
-        flushTimerRef.current = null;
-      }
-      latestPosRef.current = null;
+      // if (flushTimerRef.current) {
+      //   window.clearTimeout(flushTimerRef.current);
+      //   flushTimerRef.current = null;
+      // }
+      // latestPosRef.current = null;
       // tab to release leadership
       // socket connected at App-level; only disconnect on logout or unmount of App
     };

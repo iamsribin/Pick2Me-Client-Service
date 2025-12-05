@@ -89,10 +89,12 @@ export interface DriverLocationMessage {
   lng: number;
   speed?: number;
   heading?: number;
-  ts: number;      // epoch ms assigned by device or server
-  seq?: number;    // monotonic sequence to detect ordering
-  id?: string;  
+  ts: number;      // device epoch ms
+  serverTs?: number; // server epoch ms (optional)
+  seq?: number;    // monotonic sequence
+  id?: string;
 }
+
 
 export interface LocationCoordinates {
     address: string;

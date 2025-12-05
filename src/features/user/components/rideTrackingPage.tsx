@@ -55,6 +55,7 @@ const UserRideTracking: React.FC = () => {
   const driverLocation = useSelector(
     (state: RootState) => state.RideData.latest[rideId || ""]
   );
+console.log("rideDetails",rideDetails);
 
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [center, setCenter] = useState({ lat: 0, lng: 0 });

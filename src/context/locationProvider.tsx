@@ -49,7 +49,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const isTrackingRef = useRef<boolean>(!!isOnline);
 
   const getKey = (isHeartbeat = true) => {
-    console.log("rideData==",rideData);
+    console.log("rideData==",rideData); 
     
     if (isHeartbeat) {
       return rideData.status ? "inride:driver:heartbeat" : "driver:heartbeat";
@@ -83,7 +83,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     (location: LocationUpdate) => {
       const now = Date.now();
 
-      if (now - lastUpdateRef.current < updateIntervalMs) return;
+      // if (now - lastUpdateRef.current < updateIntervalMs) return;
 
       if (lastLocationRef.current) {
         const distance = calculateDistance(
@@ -94,16 +94,17 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         );
 
         // If moved less than 10 meters and less than 30 seconds, skip update
-        if (distance < 10 && now - lastUpdateRef.current < 30000) return;
+        // if (distance < 10 && now - lastUpdateRef.current < 30000) return;
       }
 
       dispatch(
         emitSocket(getKey(false), {
           latitude: location.latitude,
           longitude: location.longitude,
-          accuracy: location.accuracy,
+          accuracy: location.accuracy, 
           timestamp: location.timestamp,
-          rideId : rideData.status ? rideData.rideDetails.rideId:""
+          rideId : rideData.status ? rideData.rideDetails.rideId:"",
+          userId: rideData.rideDetails.user.userId
         }) as any
       );
 

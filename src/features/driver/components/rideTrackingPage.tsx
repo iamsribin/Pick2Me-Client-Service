@@ -21,6 +21,7 @@ import {
   Clock,
 } from "lucide-react";
 import { RootState } from "@/shared/services/redux/store";
+import { useAnimatedDriverMarker } from "@/shared/hooks/useAnimatedDriverMarker";
 
 const libraries: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -49,17 +50,29 @@ const DriverRideTracking: React.FC = () => {
     libraries,
   });
 
-  const rideDetails = useSelector((state: RootState) => state.RideData.rideDetails);
+  const displayPos = useAnimatedDriverMarker(rideId);
+
+  const rideDetails = useSelector(
+    (state: RootState) => state.RideData.rideDetails
+  );
   const status = useSelector((state: RootState) => state.RideData.status);
   const driverLocation = useSelector(
     (state: RootState) => state.RideData.latest[rideId || ""]
   );
 
-  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [directions, setDirections] =
+    useState<google.maps.DirectionsResult | null>(null);
   const [center, setCenter] = useState({ lat: 0, lng: 0 });
   const [zoom, setZoom] = useState(14);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [messages, setMessages] = useState<Array<{ text: string; sender: "driver" | "user"; image?: string; time: string }>>([]);
+  const [messages, setMessages] = useState<
+    Array<{
+      text: string;
+      sender: "driver" | "user";
+      image?: string;
+      time: string;
+    }>
+  >([]);
   const [messageInput, setMessageInput] = useState("");
   const [pinInput, setPinInput] = useState(["", "", "", "", "", ""]);
   const [pinError, setPinError] = useState("");
@@ -162,7 +175,10 @@ const DriverRideTracking: React.FC = () => {
         {
           text: messageInput,
           sender: "driver",
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          time: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
         },
       ]);
       setMessageInput("");
@@ -180,7 +196,10 @@ const DriverRideTracking: React.FC = () => {
             text: "",
             sender: "driver",
             image: reader.result as string,
-            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            time: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
           },
         ]);
       };
@@ -219,15 +238,21 @@ const DriverRideTracking: React.FC = () => {
             <div className="w-full bg-yellow-50 rounded-lg p-4 space-y-3 border border-yellow-300">
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">Distance</span>
-                <span className="text-gray-900 font-semibold">{rideDetails.distanceInfo?.distance}</span>
+                <span className="text-gray-900 font-semibold">
+                  {rideDetails.distanceInfo?.distance}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">Duration</span>
-                <span className="text-gray-900 font-semibold">{rideDetails.duration}</span>
+                <span className="text-gray-900 font-semibold">
+                  {rideDetails.duration}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">Earnings</span>
-                <span className="text-yellow-600 font-bold text-lg">₹{rideDetails.price}</span>
+                <span className="text-yellow-600 font-bold text-lg">
+                  ₹{rideDetails.price}
+                </span>
               </div>
             </div>
             <button
@@ -250,12 +275,13 @@ const DriverRideTracking: React.FC = () => {
         mapContainerStyle={mapContainerStyle}
         options={mapOptions}
       >
-        {driverLocation && (
+        {displayPos && (
           <Marker
-            position={{ lat: driverLocation.lat, lng: driverLocation.lng }}
+            position={{ lat: displayPos.lat, lng: displayPos.lng }}
             icon={{
               url: "/images/taxi.png",
               scaledSize: new google.maps.Size(45, 45),
+              // To rotate icon by heading use a canvas-based icon or marker rotation technique.
             }}
           />
         )}
@@ -301,17 +327,24 @@ const DriverRideTracking: React.FC = () => {
         <div className="bg-white backdrop-blur-lg rounded-2xl p-4 shadow-2xl border-2 border-yellow-500">
           <div className="flex items-center space-x-4">
             <img
-              src={rideDetails.user?.userProfile || "/images/default-avatar.png"}
+              src={
+                rideDetails.user?.userProfile || "/images/default-avatar.png"
+              }
               alt="User"
               className="w-16 h-16 rounded-full border-2 border-yellow-500"
             />
             <div className="flex-1">
-              <h3 className="text-gray-900 font-bold text-lg">{rideDetails.user?.userName}</h3>
-              <p className="text-gray-700 text-sm">{rideDetails.user?.userNumber}</p>
+              <h3 className="text-gray-900 font-bold text-lg">
+                {rideDetails.user?.userName}
+              </h3>
+              <p className="text-gray-700 text-sm">
+                {rideDetails.user?.userNumber}
+              </p>
               <div className="flex items-center space-x-2 mt-1">
                 <Clock className="text-yellow-600" size={14} />
                 <span className="text-yellow-600 text-xs font-semibold">
-                  {status === "Accepted" ? "Pickup" : "Drop-off"} - {rideDetails.duration}
+                  {status === "Accepted" ? "Pickup" : "Drop-off"} -{" "}
+                  {rideDetails.duration}
                 </span>
               </div>
             </div>
@@ -375,7 +408,9 @@ const DriverRideTracking: React.FC = () => {
               <MapPin className="text-yellow-600" size={20} />
               <div>
                 <p className="text-gray-600 text-xs">
-                  {status === "Accepted" ? "Pickup Location" : "Drop-off Location"}
+                  {status === "Accepted"
+                    ? "Pickup Location"
+                    : "Drop-off Location"}
                 </p>
                 <p className="text-gray-900 text-sm font-semibold truncate max-w-[200px]">
                   {status === "Accepted"
@@ -386,7 +421,9 @@ const DriverRideTracking: React.FC = () => {
             </div>
             <div className="text-right">
               <p className="text-gray-600 text-xs">Fare</p>
-              <p className="text-yellow-600 font-bold text-lg">₹{rideDetails.price}</p>
+              <p className="text-yellow-600 font-bold text-lg">
+                ₹{rideDetails.price}
+              </p>
             </div>
           </div>
         </div>
@@ -398,12 +435,17 @@ const DriverRideTracking: React.FC = () => {
             <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 p-4 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <img
-                  src={rideDetails.user?.userProfile || "/images/default-avatar.png"}
+                  src={
+                    rideDetails.user?.userProfile ||
+                    "/images/default-avatar.png"
+                  }
                   alt="User"
                   className="w-10 h-10 rounded-full border-2 border-white"
                 />
                 <div>
-                  <h3 className="text-white font-bold">{rideDetails.user?.userName}</h3>
+                  <h3 className="text-white font-bold">
+                    {rideDetails.user?.userName}
+                  </h3>
                   <p className="text-white/80 text-xs">Online</p>
                 </div>
               </div>
@@ -419,7 +461,9 @@ const DriverRideTracking: React.FC = () => {
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
-                  className={`flex ${msg.sender === "driver" ? "justify-end" : "justify-start"}`}
+                  className={`flex ${
+                    msg.sender === "driver" ? "justify-end" : "justify-start"
+                  }`}
                 >
                   <div
                     className={`max-w-[70%] rounded-2xl p-3 ${
@@ -428,11 +472,19 @@ const DriverRideTracking: React.FC = () => {
                         : "bg-white text-gray-900 border border-gray-200"
                     }`}
                   >
-                    {msg.image && <img src={msg.image} alt="Sent" className="rounded-lg mb-2" />}
+                    {msg.image && (
+                      <img
+                        src={msg.image}
+                        alt="Sent"
+                        className="rounded-lg mb-2"
+                      />
+                    )}
                     {msg.text && <p className="text-sm">{msg.text}</p>}
                     <p
                       className={`text-xs mt-1 ${
-                        msg.sender === "driver" ? "text-white/70" : "text-gray-500"
+                        msg.sender === "driver"
+                          ? "text-white/70"
+                          : "text-gray-500"
                       }`}
                     >
                       {msg.time}

@@ -9,19 +9,19 @@ import { showRideRequest } from "../services/redux/slices/rideRequestSlice";
 
 export function useDriverSocketEvents() {
   const dispatch = useDispatch();
-  const latestPosRef = useRef<any>(null);
-  const flushTimerRef = useRef<number | null>(null);
+  // const latestPosRef = useRef<any>(null);
+  // const flushTimerRef = useRef<number | null>(null);
 
-  const flush = () => {
-    if (latestPosRef.current) {
-      dispatch(rideLocationReceived(latestPosRef.current));
-      latestPosRef.current = null;
-    }
-    if (flushTimerRef.current) {
-      window.clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = null;
-    }
-  };
+  // const flush = () => {
+  //   if (latestPosRef.current) {
+  //     dispatch(rideLocationReceived(latestPosRef.current));
+  //     latestPosRef.current = null;
+  //   }
+  //   if (flushTimerRef.current) {
+  //     window.clearTimeout(flushTimerRef.current);
+  //     flushTimerRef.current = null;
+  //   }
+  // };
   const user = useSelector((state: RootState) => state.user);
 
   useEffect(() => {
@@ -54,30 +54,29 @@ export function useDriverSocketEvents() {
 
     const offLocationUpdate = SocketService.on("driver:location:update", (data) => {
       console.log("driver:location:update",data);
-      
-      // dispatch(notificationReceived(data.driverNotification));
-      // dispatch(rideCreate(data.rideData));
+      dispatch(rideLocationReceived({...data, serverTs: data.serverTs || Date.now()}))
     });
 
-    const offDriverLocation = SocketService.on("driver.location", (data) => {
-      latestPosRef.current = data;
-      if (!flushTimerRef.current) {
-        flushTimerRef.current = window.setTimeout(flush, 200);
-      }
-    });
+    // const offDriverLocation = SocketService.on("driver.location", (data) => {
+    //   latestPosRef.current = data;
+    //   if (!flushTimerRef.current) {
+    //     flushTimerRef.current = window.setTimeout(flush, 200);
+    //   }
+    // });
 
     return () => {
       offNotification();
-      offDriverLocation();
+      // offDriverLocation();
       offRideRequest();
       offError();
       offRide();
       offLocationUpdate();
-      if (flushTimerRef.current) {
-        window.clearTimeout(flushTimerRef.current);
-        flushTimerRef.current = null;
-      }
-      latestPosRef.current = null;
+      // if (flushTimerRef.current) {
+      //   window.clearTimeout(flushTimerRef.current);
+      //   flushTimerRef.current = null;
+      // }
+      // latestPosRef.current = null;
+
       // tab to release leadership
       // socket connected at App-level; only disconnect on logout or unmount of App
     };
