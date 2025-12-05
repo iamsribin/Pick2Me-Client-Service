@@ -50,18 +50,28 @@ const UserRideTracking: React.FC = () => {
     libraries,
   });
 
-  const rideDetails = useSelector((state: RootState) => state.RideData.rideDetails);
+  const rideDetails = useSelector(
+    (state: RootState) => state.RideData.rideDetails
+  );
   const status = useSelector((state: RootState) => state.RideData.status);
   const driverLocation = useSelector(
     (state: RootState) => state.RideData.latest[rideId || ""]
   );
-console.log("rideDetails",rideDetails);
+  console.log("rideDetails", rideDetails);
 
-  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [directions, setDirections] =
+    useState<google.maps.DirectionsResult | null>(null);
   const [center, setCenter] = useState({ lat: 0, lng: 0 });
-  const [zoom, setZoom] = useState(14);
+  const [zoom, setZoom] = useState(9);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [messages, setMessages] = useState<Array<{ text: string; sender: "user" | "driver"; image?: string; time: string }>>([]);
+  const [messages, setMessages] = useState<
+    Array<{
+      text: string;
+      sender: "user" | "driver";
+      image?: string;
+      time: string;
+    }>
+  >([]);
   const [messageInput, setMessageInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -129,7 +139,10 @@ console.log("rideDetails",rideDetails);
         {
           text: messageInput,
           sender: "user",
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          time: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
         },
       ]);
       setMessageInput("");
@@ -147,7 +160,10 @@ console.log("rideDetails",rideDetails);
             text: "",
             sender: "user",
             image: reader.result as string,
-            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            time: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
           },
         ]);
       };
@@ -182,24 +198,35 @@ console.log("rideDetails",rideDetails);
               Finding Your Driver
             </h2>
             <p className="text-gray-400 text-center">
-              We're connecting you with the nearest driver. This usually takes less than a minute.
+              We're connecting you with the nearest driver. This usually takes
+              less than a minute.
             </p>
             <div className="flex space-x-2">
               <div className="w-3 h-3 bg-yellow-500 rounded-full animate-bounce"></div>
-              <div className="w-3 h-3 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-              <div className="w-3 h-3 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+              <div
+                className="w-3 h-3 bg-yellow-500 rounded-full animate-bounce"
+                style={{ animationDelay: "0.2s" }}
+              ></div>
+              <div
+                className="w-3 h-3 bg-yellow-500 rounded-full animate-bounce"
+                style={{ animationDelay: "0.4s" }}
+              ></div>
             </div>
             <div className="w-full bg-gray-800 rounded-lg p-4 mt-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-400 text-sm">Pickup</span>
                 <MapPin className="text-yellow-500" size={16} />
               </div>
-              <p className="text-white text-sm">{rideDetails.pickupCoordinates?.address}</p>
+              <p className="text-white text-sm">
+                {rideDetails.pickupCoordinates?.address}
+              </p>
               <div className="flex items-center justify-between mt-4 mb-2">
                 <span className="text-gray-400 text-sm">Destination</span>
                 <MapPin className="text-yellow-500" size={16} />
               </div>
-              <p className="text-white text-sm">{rideDetails.dropOffCoordinates?.address}</p>
+              <p className="text-white text-sm">
+                {rideDetails.dropOffCoordinates?.address}
+              </p>
             </div>
           </div>
         </div>
@@ -224,15 +251,21 @@ console.log("rideDetails",rideDetails);
             <div className="w-full bg-gray-800 rounded-lg p-4 space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-400">Distance</span>
-                <span className="text-white font-semibold">{rideDetails.distanceInfo?.distance}</span>
+                <span className="text-white font-semibold">
+                  {rideDetails.distanceInfo?.distance}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-400">Duration</span>
-                <span className="text-white font-semibold">{rideDetails.duration}</span>
+                <span className="text-white font-semibold">
+                  {rideDetails.duration}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-400">Fare</span>
-                <span className="text-yellow-500 font-bold text-lg">₹{rideDetails.price}</span>
+                <span className="text-yellow-500 font-bold text-lg">
+                  ₹{rideDetails.price}
+                </span>
               </div>
             </div>
             <button
@@ -265,7 +298,6 @@ console.log("rideDetails",rideDetails);
             }}
           />
         )}
-
         {status === "Accepted" && rideDetails.pickupCoordinates && (
           <Marker
             position={{
@@ -282,7 +314,6 @@ console.log("rideDetails",rideDetails);
             }}
           />
         )}
-
         {status === "InRide" && rideDetails.dropOffCoordinates && (
           <Marker
             position={{
@@ -299,8 +330,19 @@ console.log("rideDetails",rideDetails);
             }}
           />
         )}
-
-        {directions && <DirectionsRenderer directions={directions} />}
+        {directions && (
+          <DirectionsRenderer
+            directions={directions}
+            options={{
+              suppressMarkers: true,
+              polylineOptions: {
+                strokeColor: "#2b8cff",
+                strokeWeight: 6,
+                clickable: false,
+              },
+            }}
+          />
+        )}{" "}
       </GoogleMap>
 
       {/* Driver Info Card */}
@@ -309,16 +351,25 @@ console.log("rideDetails",rideDetails);
           <div className="bg-black/90 backdrop-blur-lg rounded-2xl p-4 shadow-2xl border border-yellow-500/30">
             <div className="flex items-center space-x-4">
               <img
-                src={rideDetails.driver.driverProfile || "/images/default-avatar.png"}
+                src={
+                  rideDetails.driver.driverProfile ||
+                  "/images/default-avatar.png"
+                }
                 alt="Driver"
                 className="w-16 h-16 rounded-full border-2 border-yellow-500"
               />
               <div className="flex-1">
-                <h3 className="text-white font-bold text-lg">{rideDetails.driver.driverName}</h3>
-                <p className="text-gray-400 text-sm">{rideDetails.vehicleModel}</p>
+                <h3 className="text-white font-bold text-lg">
+                  {rideDetails.driver.driverName}
+                </h3>
+                <p className="text-gray-400 text-sm">
+                  {rideDetails.vehicleModel}
+                </p>
                 <div className="flex items-center space-x-2 mt-1">
                   <Navigation className="text-yellow-500" size={14} />
-                  <span className="text-yellow-500 text-xs font-semibold">On the way</span>
+                  <span className="text-yellow-500 text-xs font-semibold">
+                    On the way
+                  </span>
                 </div>
               </div>
               <div className="flex flex-col space-y-2">
@@ -340,16 +391,23 @@ console.log("rideDetails",rideDetails);
             {/* PIN Display for Accepted Status */}
             {status === "Accepted" && (
               <div className="mt-4 bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 rounded-xl p-4 border border-yellow-500/50">
-                <p className="text-gray-300 text-xs text-center mb-2">Share this PIN with driver</p>
+                <p className="text-gray-300 text-xs text-center mb-2">
+                  Share this PIN with driver
+                </p>
                 <div className="flex justify-center space-x-2">
-                  {rideDetails.pin.toString().split("").map((digit, idx) => (
-                    <div
-                      key={idx}
-                      className="w-10 h-12 bg-black/50 rounded-lg flex items-center justify-center border border-yellow-500"
-                    >
-                      <span className="text-yellow-500 font-bold text-2xl">{digit}</span>
-                    </div>
-                  ))}
+                  {rideDetails.pin
+                    .toString()
+                    .split("")
+                    .map((digit, idx) => (
+                      <div
+                        key={idx}
+                        className="w-10 h-12 bg-black/50 rounded-lg flex items-center justify-center border border-yellow-500"
+                      >
+                        <span className="text-yellow-500 font-bold text-2xl">
+                          {digit}
+                        </span>
+                      </div>
+                    ))}
                 </div>
               </div>
             )}
@@ -377,7 +435,9 @@ console.log("rideDetails",rideDetails);
               </div>
               <div className="text-right">
                 <p className="text-gray-400 text-xs">ETA</p>
-                <p className="text-yellow-500 font-bold">{rideDetails.duration}</p>
+                <p className="text-yellow-500 font-bold">
+                  {rideDetails.duration}
+                </p>
               </div>
             </div>
           </div>
@@ -392,12 +452,17 @@ console.log("rideDetails",rideDetails);
             <div className="bg-black/50 p-4 flex items-center justify-between border-b border-yellow-500/30">
               <div className="flex items-center space-x-3">
                 <img
-                  src={rideDetails.driver?.driverProfile || "/images/default-avatar.png"}
+                  src={
+                    rideDetails.driver?.driverProfile ||
+                    "/images/default-avatar.png"
+                  }
                   alt="Driver"
                   className="w-10 h-10 rounded-full border-2 border-yellow-500"
                 />
                 <div>
-                  <h3 className="text-white font-semibold">{rideDetails.driver?.driverName}</h3>
+                  <h3 className="text-white font-semibold">
+                    {rideDetails.driver?.driverName}
+                  </h3>
                   <p className="text-gray-400 text-xs">Online</p>
                 </div>
               </div>
@@ -414,7 +479,9 @@ console.log("rideDetails",rideDetails);
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
-                  className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex ${
+                    msg.sender === "user" ? "justify-end" : "justify-start"
+                  }`}
                 >
                   <div
                     className={`max-w-[70%] rounded-2xl p-3 ${
@@ -423,11 +490,19 @@ console.log("rideDetails",rideDetails);
                         : "bg-gray-800 text-white"
                     }`}
                   >
-                    {msg.image && <img src={msg.image} alt="Sent" className="rounded-lg mb-2" />}
+                    {msg.image && (
+                      <img
+                        src={msg.image}
+                        alt="Sent"
+                        className="rounded-lg mb-2"
+                      />
+                    )}
                     {msg.text && <p className="text-sm">{msg.text}</p>}
                     <p
                       className={`text-xs mt-1 ${
-                        msg.sender === "user" ? "text-black/70" : "text-gray-400"
+                        msg.sender === "user"
+                          ? "text-black/70"
+                          : "text-gray-400"
                       }`}
                     >
                       {msg.time}

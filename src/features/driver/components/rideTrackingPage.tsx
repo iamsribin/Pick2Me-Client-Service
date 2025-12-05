@@ -63,7 +63,7 @@ const DriverRideTracking: React.FC = () => {
   const [directions, setDirections] =
     useState<google.maps.DirectionsResult | null>(null);
   const [center, setCenter] = useState({ lat: 0, lng: 0 });
-  const [zoom, setZoom] = useState(14);
+  const [zoom, setZoom] = useState(9);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [messages, setMessages] = useState<
     Array<{
@@ -286,6 +286,7 @@ const DriverRideTracking: React.FC = () => {
           />
         )}
 
+        {/* Pickup */}
         {status === "Accepted" && rideDetails.pickupCoordinates && (
           <Marker
             position={{
@@ -302,7 +303,7 @@ const DriverRideTracking: React.FC = () => {
             }}
           />
         )}
-
+        {/* Drop */}
         {status === "InRide" && rideDetails.dropOffCoordinates && (
           <Marker
             position={{
@@ -320,7 +321,19 @@ const DriverRideTracking: React.FC = () => {
           />
         )}
 
-        {directions && <DirectionsRenderer directions={directions} />}
+        {directions && (
+          <DirectionsRenderer
+            directions={directions}
+            options={{
+              suppressMarkers: true,
+              polylineOptions: {
+                strokeColor: "#2b8cff",
+                strokeWeight: 6,
+                clickable: false,
+              },
+            }}
+          />
+        )}
       </GoogleMap>
 
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
