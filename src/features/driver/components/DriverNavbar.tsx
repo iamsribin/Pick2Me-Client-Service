@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   User,
   Wallet,
@@ -19,14 +19,14 @@ import {
 import { RootState } from "@/shared/services/redux/store";
 import { useSelector } from "react-redux";
 import { handleLogout } from "@/shared/utils/auth";
-import NotificationPanel from "./NotificationPanel";
+import NotificationPanel from "../../../shared/components/NotificationPanel";
 import { useIsMobile } from "@/shared/hooks/useMobile";
 
 const DriverNavbar = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isPulsing, setIsPulsing] = useState(true);
   const isMobileView = useIsMobile();
-
+const navigate = useNavigate();
   const notifications = useSelector(
     (state: RootState) => state.notification.items
   );
@@ -56,7 +56,8 @@ const DriverNavbar = () => {
   };
 
   const handleRideMapNavigation = () => {
-    console.log("Navigate to ride tracking");
+       navigate(`/driver/ride-tracking/${rideData.rideId}`);
+
   };
 
   const handlePaymentNavigation = () => {

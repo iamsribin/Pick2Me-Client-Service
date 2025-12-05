@@ -8,6 +8,7 @@ import { useDriverSocketEvents } from "@/shared/hooks/useDriverSocketEvents";
 import { LocationProvider } from "@/context/locationProvider";
 import DriverWallet from "../pages/WallerPage";
 import RideRequestModal from "../components/RideRequestModal";
+import DriverRideTracking from "../components/rideTrackingPage";
 
 const DriverLoginPage = lazy(() => import("../pages/auth/DriverLoginPage"));
 const DriverSignupPage = lazy(() => import("../pages/auth/DriverSignupPage"));
@@ -39,6 +40,7 @@ function DriverRoutes() {
               <Route path={AppRoutes.PROFILE} element={<DriverProfile />} />
               <Route path={AppRoutes.DOCUMENTS} element={<DriverDocuments />} />
               <Route path={AppRoutes.WALLET} element={<DriverWallet />} />
+              <Route path={"ride-tracking/:rideId"} element={<DriverRideTracking />} />
             </Route>
 
             <Route element={<PublicRoute allowedRoles={["Driver"]} />}>

@@ -11,6 +11,7 @@ import { Suspense, lazy } from "react";
 
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
 import { useUserSocketEvents } from "@/shared/hooks/useUserSocketEvents";
+import UserRideTracking from "../components/rideTrackingPage";
 
 const UserProfile = lazy(() => import("../pages/UserProfile"));
 const LoginPage = lazy(() => import("../pages/LoginPage"));
@@ -39,6 +40,7 @@ function UserRoutes() {
 
         <Route element={<ProtectedRoute allowedRole={ROLE} />}>
           <Route path={AppRoutes.PROFILE} element={<UserProfile />} />
+              <Route path={"/ride-tracking/:rideId"} element={<UserRideTracking />} />
 
           {/* 
              <Route path={AppRoutes.TRIPS} element={<ProtectedRoute allowedRole={ROLE}><BookingTransaction/></ProtectedRoute>}/>

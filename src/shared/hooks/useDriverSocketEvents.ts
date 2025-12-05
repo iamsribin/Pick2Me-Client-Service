@@ -52,6 +52,13 @@ export function useDriverSocketEvents() {
       dispatch(rideCreate(data.rideData));
     });
 
+    const offLocationUpdate = SocketService.on("driver:location:update", (data) => {
+      console.log("driver:location:update",data);
+      
+      // dispatch(notificationReceived(data.driverNotification));
+      // dispatch(rideCreate(data.rideData));
+    });
+
     const offDriverLocation = SocketService.on("driver.location", (data) => {
       latestPosRef.current = data;
       if (!flushTimerRef.current) {
@@ -64,7 +71,8 @@ export function useDriverSocketEvents() {
       offDriverLocation();
       offRideRequest();
       offError();
-      offRide()
+      offRide();
+      offLocationUpdate();
       if (flushTimerRef.current) {
         window.clearTimeout(flushTimerRef.current);
         flushTimerRef.current = null;

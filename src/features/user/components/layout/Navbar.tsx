@@ -14,7 +14,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState, store } from "@/shared/services/redux/store";
 import { handleLogout } from "@/shared/utils/auth";
 import { useIsMobile } from "@/shared/hooks/useMobile";
-import NotificationPanel from "@/features/driver/components/NotificationPanel";
+import NotificationPanel from "@/shared/components/NotificationPanel";
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -31,6 +31,7 @@ const Navbar: React.FC = () => {
 
   const user = store.getState().user.role === "User";
   const rideData = useSelector((state: RootState) => state.RideData.status);
+  const rideId = useSelector((state: RootState) => state.RideData.rideDetails.rideId);
   // const paymentStatus = useSelector((state: RootState) => state.RideMap.paymentStatus);
 
   const paymentStatus = null;
@@ -57,7 +58,7 @@ const Navbar: React.FC = () => {
   }, [rideData]);
 
   const handleRideMapNavigation = () => {
-    navigate("/ride-tracking");
+    navigate(`/ride-tracking/${rideId}`);
   };
 
   const handlePaymentNavigation = () => {

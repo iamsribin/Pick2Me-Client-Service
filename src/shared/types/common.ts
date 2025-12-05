@@ -1,3 +1,4 @@
+
 export type Role = "Admin" | "Driver" | "User";
 
 export interface Coordinates {
@@ -110,6 +111,7 @@ export interface DriverInfo {
   driverName: string;
   driverNumber: string;
   driverProfile: string;
+  carImageUrls:string[];
 }
 export interface RideDetails {
   id: string;

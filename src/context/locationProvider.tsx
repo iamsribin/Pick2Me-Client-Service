@@ -41,7 +41,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 }) => {
   const dispatch = useDispatch();
   const isOnline = useSelector((s: RootState) => s.user.isOnline);
-  const rideData = useSelector((s: RootState) => s.RideData.status);
+  const rideData = useSelector((s: RootState) => s.RideData);
 
   const watchIdRef = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
@@ -52,9 +52,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     console.log("rideData==",rideData);
     
     if (isHeartbeat) {
-      return rideData ? "inride:driver:heartbeat" : "driver:heartbeat";
+      return rideData.status ? "inride:driver:heartbeat" : "driver:heartbeat";
     } else {
-      return rideData
+      return rideData.status
         ? "inride:driver:location:update"
         : "driver:location:update";
     }
@@ -103,6 +103,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
           longitude: location.longitude,
           accuracy: location.accuracy,
           timestamp: location.timestamp,
+          rideId : rideData.status ? rideData.rideDetails.rideId:""
         }) as any
       );
 
