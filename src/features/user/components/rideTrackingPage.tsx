@@ -20,10 +20,11 @@ import {
   Navigation,
   CheckCircle,
   Loader,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { RootState } from "@/shared/services/redux/store";
-
-const libraries: ("places" | "geometry")[] = ["places", "geometry"];
+import { libraries } from "@/constants/map-options";
 
 const mapContainerStyle = {
   width: "100%",
@@ -57,13 +58,14 @@ const UserRideTracking: React.FC = () => {
   const driverLocation = useSelector(
     (state: RootState) => state.RideData.latest[rideId || ""]
   );
-  console.log("rideDetails", rideDetails);
 
   const [directions, setDirections] =
     useState<google.maps.DirectionsResult | null>(null);
   const [center, setCenter] = useState({ lat: 0, lng: 0 });
   const [zoom, setZoom] = useState(9);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showCarImages, setShowCarImages] = useState(false);
   const [messages, setMessages] = useState<
     Array<{
       text: string;
@@ -282,7 +284,6 @@ const UserRideTracking: React.FC = () => {
 
   return (
     <div className="relative h-screen w-full bg-gray-900">
-      {/* Map Container */}
       <GoogleMap
         center={center}
         zoom={zoom}
@@ -342,113 +343,170 @@ const UserRideTracking: React.FC = () => {
               },
             }}
           />
-        )}{" "}
+        )}
       </GoogleMap>
 
-      {/* Driver Info Card */}
+      {/* Compact Bottom Card */}
       {(status === "Accepted" || status === "InRide") && rideDetails.driver && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
-          <div className="bg-black/90 backdrop-blur-lg rounded-2xl p-4 shadow-2xl border border-yellow-500/30">
-            <div className="flex items-center space-x-4">
-              <img
-                src={
-                  rideDetails.driver.driverProfile ||
-                  "/images/default-avatar.png"
-                }
-                alt="Driver"
-                className="w-16 h-16 rounded-full border-2 border-yellow-500"
-              />
-              <div className="flex-1">
-                <h3 className="text-white font-bold text-lg">
-                  {rideDetails.driver.driverName}
-                </h3>
-                <p className="text-gray-400 text-sm">
-                  {rideDetails.vehicleModel}
-                </p>
-                <div className="flex items-center space-x-2 mt-1">
-                  <Navigation className="text-yellow-500" size={14} />
-                  <span className="text-yellow-500 text-xs font-semibold">
-                    On the way
-                  </span>
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
+          <div className="bg-black/90 backdrop-blur-lg rounded-2xl shadow-2xl border border-yellow-500/30 overflow-hidden">
+            {/* Compact View - Always Visible */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2 flex-1">
+                  <MapPin className="text-yellow-500 flex-shrink-0" size={18} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-400 text-xs">
+                      {status === "Accepted" ? "Pickup" : "Destination"}
+                    </p>
+                    <p className="text-white text-sm font-semibold truncate">
+                      {status === "Accepted"
+                        ? rideDetails.pickupCoordinates?.address
+                        : rideDetails.dropOffCoordinates?.address}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col space-y-2">
-                <button
-                  onClick={handleCall}
-                  className="bg-green-500 hover:bg-green-600 p-2 rounded-full transition-colors"
-                >
-                  <Phone className="text-white" size={20} />
-                </button>
-                <button
-                  onClick={() => setIsChatOpen(true)}
-                  className="bg-blue-500 hover:bg-blue-600 p-2 rounded-full transition-colors"
-                >
-                  <MessageCircle className="text-white" size={20} />
-                </button>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Clock className="text-yellow-500" size={16} />
+                  <span className="text-white text-sm font-medium">
+                    {rideDetails.duration}
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleCall}
+                    className="bg-green-500 hover:bg-green-600 p-2 rounded-full transition-colors"
+                  >
+                    <Phone className="text-white" size={18} />
+                  </button>
+                  <button
+                    onClick={() => setIsChatOpen(true)}
+                    className="bg-blue-500 hover:bg-blue-600 p-2 rounded-full transition-colors"
+                  >
+                    <MessageCircle className="text-white" size={18} />
+                  </button>
+                  <button
+                    onClick={() => setShowDetails(!showDetails)}
+                    className="bg-yellow-500 hover:bg-yellow-600 p-2 rounded-full transition-colors"
+                  >
+                    {showDetails ? (
+                      <ChevronDown className="text-black" size={18} />
+                    ) : (
+                      <ChevronUp className="text-black" size={18} />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* PIN Display for Accepted Status */}
-            {status === "Accepted" && (
-              <div className="mt-4 bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 rounded-xl p-4 border border-yellow-500/50">
-                <p className="text-gray-300 text-xs text-center mb-2">
-                  Share this PIN with driver
-                </p>
-                <div className="flex justify-center space-x-2">
-                  {rideDetails.pin
-                    .toString()
-                    .split("")
-                    .map((digit, idx) => (
-                      <div
-                        key={idx}
-                        className="w-10 h-12 bg-black/50 rounded-lg flex items-center justify-center border border-yellow-500"
-                      >
-                        <span className="text-yellow-500 font-bold text-2xl">
-                          {digit}
-                        </span>
-                      </div>
-                    ))}
+            {/* Expanded Details - Toggleable */}
+            {showDetails && (
+              <div className="border-t border-yellow-500/30 bg-gray-800/50 p-4 space-y-4">
+                {/* Driver Details */}
+                <div className="flex items-center space-x-3">
+                  <img
+                    src={
+                      rideDetails.driver.driverProfile ||
+                      "/images/default-avatar.png"
+                    }
+                    alt="Driver"
+                    className="w-14 h-14 rounded-full border-2 border-yellow-500"
+                  />
+                  <div className="flex-1">
+                    <h3 className="text-white font-bold text-base">
+                      {rideDetails.driver.driverName}
+                    </h3>
+                    <p className="text-gray-400 text-sm">
+                      {rideDetails.vehicleModel}
+                    </p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Navigation className="text-yellow-500" size={12} />
+                      <span className="text-yellow-500 text-xs font-semibold">
+                        On the way
+                      </span>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Car Images Button */}
+                {(rideDetails.driver.carFrontImageUrl ||
+                  rideDetails.driver.carBackImageUrl) && (
+                  <button
+                    onClick={() => setShowCarImages(!showCarImages)}
+                    className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <Car size={18} />
+                    <span className="text-sm font-medium">
+                      {showCarImages ? "Hide" : "View"} Vehicle Photos
+                    </span>
+                  </button>
+                )}
+
+                {/* Car Images Display */}
+                {showCarImages && (
+                  <div className="space-y-3">
+                    {rideDetails.driver.carFrontImageUrl && (
+                      <div className="bg-black/50 rounded-lg p-2">
+                        <p className="text-gray-400 text-xs mb-2">
+                          Front View
+                        </p>
+                        <img
+                          src={rideDetails.driver.carFrontImageUrl}
+                          alt="Car Front"
+                          className="w-full rounded-lg"
+                        />
+                      </div>
+                    )}
+                    {rideDetails.driver.carBackImageUrl && (
+                      <div className="bg-black/50 rounded-lg p-2">
+                        <p className="text-gray-400 text-xs mb-2">Back View</p>
+                        <img
+                          src={rideDetails.driver.carBackImageUrl}
+                          alt="Car Back"
+                          className="w-full rounded-lg"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* PIN Display for Accepted Status */}
+                {status === "Accepted" && (
+                  <div className="bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 rounded-xl p-4 border border-yellow-500/50">
+                    <p className="text-gray-300 text-xs text-center mb-2">
+                      Share this PIN with driver
+                    </p>
+                    <div className="flex justify-center space-x-2">
+                      {rideDetails.pin
+                        .toString()
+                        .split("")
+                        .map((digit, idx) => (
+                          <div
+                            key={idx}
+                            className="w-10 h-12 bg-black/50 rounded-lg flex items-center justify-center border border-yellow-500"
+                          >
+                            <span className="text-yellow-500 font-bold text-2xl">
+                              {digit}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Trip Info Bottom Card */}
-      {(status === "Accepted" || status === "InRide") && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
-          <div className="bg-black/90 backdrop-blur-lg rounded-2xl p-4 shadow-2xl border border-yellow-500/30">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <MapPin className="text-yellow-500" size={20} />
-                <div>
-                  <p className="text-gray-400 text-xs">
-                    {status === "Accepted" ? "Pickup Location" : "Destination"}
-                  </p>
-                  <p className="text-white text-sm font-semibold truncate max-w-[200px]">
-                    {status === "Accepted"
-                      ? rideDetails.pickupCoordinates?.address
-                      : rideDetails.dropOffCoordinates?.address}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-gray-400 text-xs">ETA</p>
-                <p className="text-yellow-500 font-bold">
-                  {rideDetails.duration}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Chat Panel */}
+      {/* Chat Modal */}
       {isChatOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center sm:justify-center">
           <div className="bg-gray-900 w-full sm:max-w-md sm:rounded-2xl h-[80vh] sm:h-[600px] flex flex-col border border-yellow-500/30 shadow-2xl">
-            {/* Chat Header */}
             <div className="bg-black/50 p-4 flex items-center justify-between border-b border-yellow-500/30">
               <div className="flex items-center space-x-3">
                 <img
@@ -474,7 +532,6 @@ const UserRideTracking: React.FC = () => {
               </button>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.map((msg, idx) => (
                 <div
@@ -512,7 +569,6 @@ const UserRideTracking: React.FC = () => {
               ))}
             </div>
 
-            {/* Input Area */}
             <div className="bg-black/50 p-4 border-t border-yellow-500/30">
               <div className="flex items-center space-x-2">
                 <input

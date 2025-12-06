@@ -113,7 +113,8 @@ export interface DriverInfo {
   driverName: string;
   driverNumber: string;
   driverProfile: string;
-  carImageUrls:string[];
+  carBackImageUrl:string;
+  carFrontImageUrl:string;
 }
 export interface RideDetails {
   id: string;

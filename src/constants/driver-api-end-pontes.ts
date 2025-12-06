@@ -21,7 +21,7 @@ enum DriverApiEndpoints {
   // ride 
   ONLINE_STATUS = "/drivers/me/online-status",
   MY_TRIPS = `/drivers/me/trips`,
-  CHECK_SECURITY_PIN = "/drivers/check-security-pin",
+  CHECK_SECURITY_PIN = "/bookings/check-security-pin",
   MAIN_DASHBOARD = "/drivers/me/main-dashboard",
   TRIP_DETAILS = "/drivers/me/trip-details",
   WALLET= "/payments/drivers/me/wallet",

@@ -22,16 +22,16 @@ const slice = createSlice({
       const arr = state.positions[p.rideId] ?? [];
       const last = arr[arr.length - 1];
 
-      if (p.id && arr.some((a) => a.id === p.id)) return;
+      // if (p.id && arr.some((a) => a.id === p.id)) return;
 
-      if (
-        last &&
-        p.seq !== undefined &&
-        last.seq !== undefined &&
-        p.seq <= last.seq
-      ) {
-        return;
-      }
+      // if (
+      //   last &&
+      //   p.seq !== undefined &&
+      //   last.seq !== undefined &&
+      //   p.seq <= last.seq
+      // ) {
+      //   return;
+      // }
 
       arr.push(p);
       if (arr.length > MAX_BUFFER) arr.shift();

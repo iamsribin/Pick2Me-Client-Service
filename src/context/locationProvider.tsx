@@ -96,7 +96,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         // If moved less than 10 meters and less than 30 seconds, skip update
         // if (distance < 10 && now - lastUpdateRef.current < 30000) return;
       }
-
+// 10.892027, 75.998486
       dispatch(
         emitSocket(getKey(false), {
           latitude: location.latitude,

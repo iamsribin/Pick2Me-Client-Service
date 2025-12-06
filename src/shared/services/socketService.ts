@@ -173,7 +173,8 @@ class SocketService {
 
     this.socket.on("connect_error", async (err: any) => {
       const msg = (err && err.message) || "";
-      if (msg.includes("token_expired")) {
+
+      if (msg.includes("token_expired") || msg.includes("no_access_token")) {
         try {
           await startRefresh(async () => {
             await axios.get(`${API_URL}/refresh`, { withCredentials: true });

@@ -19,9 +19,15 @@ import {
   Loader,
   AlertCircle,
   Clock,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { RootState } from "@/shared/services/redux/store";
 import { useAnimatedDriverMarker } from "@/shared/hooks/useAnimatedDriverMarker";
+import { postData } from "@/shared/services/api/api-service";
+import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
+import { toast } from "@/shared/hooks/use-toast";
+import { handleCustomError } from "@/shared/utils/error";
 
 const libraries: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -65,6 +71,7 @@ const DriverRideTracking: React.FC = () => {
   const [center, setCenter] = useState({ lat: 0, lng: 0 });
   const [zoom, setZoom] = useState(9);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [messages, setMessages] = useState<
     Array<{
       text: string;
@@ -154,18 +161,27 @@ const DriverRideTracking: React.FC = () => {
     }
   };
 
-  const handleSubmitPin = () => {
-    const enteredPin = pinInput.join("");
-    if (enteredPin.length !== 6) {
-      setPinError("Please enter all 6 digits");
-      return;
+  const handleSubmitPin = async () => {
+    try {
+      
+      const enteredPin = pinInput.join("");
+      if (enteredPin.length !== 6) {
+        setPinError("Please enter all 6 digits");
+        return;
+      }
+      if (enteredPin !== rideDetails.pin.toString()) {
+        setPinError("Invalid PIN. Please try again.");
+        return;
+      }
+      const response = await postData(
+        DriverApiEndpoints.CHECK_SECURITY_PIN,
+        enteredPin
+      );
+      if (response?.status == 200)
+        toast({ description: "ride started successfully", variant: "error" });
+    } catch (error) {
+      handleCustomError(error)
     }
-    if (enteredPin !== rideDetails.pin.toString()) {
-      setPinError("Invalid PIN. Please try again.");
-      return;
-    }
-    // PIN verified - Here you would dispatch an action to start the ride
-    console.log("PIN verified, starting ride...");
   };
 
   const handleSendMessage = () => {
@@ -281,12 +297,10 @@ const DriverRideTracking: React.FC = () => {
             icon={{
               url: "/images/taxi.png",
               scaledSize: new google.maps.Size(45, 45),
-              // To rotate icon by heading use a canvas-based icon or marker rotation technique.
             }}
           />
         )}
 
-        {/* Pickup */}
         {status === "Accepted" && rideDetails.pickupCoordinates && (
           <Marker
             position={{
@@ -303,7 +317,7 @@ const DriverRideTracking: React.FC = () => {
             }}
           />
         )}
-        {/* Drop */}
+
         {status === "InRide" && rideDetails.dropOffCoordinates && (
           <Marker
             position={{
@@ -336,112 +350,131 @@ const DriverRideTracking: React.FC = () => {
         )}
       </GoogleMap>
 
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
-        <div className="bg-white backdrop-blur-lg rounded-2xl p-4 shadow-2xl border-2 border-yellow-500">
-          <div className="flex items-center space-x-4">
-            <img
-              src={
-                rideDetails.user?.userProfile || "/images/default-avatar.png"
-              }
-              alt="User"
-              className="w-16 h-16 rounded-full border-2 border-yellow-500"
-            />
-            <div className="flex-1">
-              <h3 className="text-gray-900 font-bold text-lg">
-                {rideDetails.user?.userName}
-              </h3>
-              <p className="text-gray-700 text-sm">
-                {rideDetails.user?.userNumber}
-              </p>
-              <div className="flex items-center space-x-2 mt-1">
-                <Clock className="text-yellow-600" size={14} />
-                <span className="text-yellow-600 text-xs font-semibold">
-                  {status === "Accepted" ? "Pickup" : "Drop-off"} -{" "}
+      {/* Compact Bottom Card */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
+        <div className="bg-white backdrop-blur-lg rounded-2xl shadow-2xl border-2 border-yellow-500 overflow-hidden">
+          {/* Compact View - Always Visible */}
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2 flex-1">
+                <MapPin className="text-yellow-600 flex-shrink-0" size={18} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-600 text-xs">
+                    {status === "Accepted" ? "Pickup" : "Drop-off"}
+                  </p>
+                  <p className="text-gray-900 text-sm font-semibold truncate">
+                    {status === "Accepted"
+                      ? rideDetails.pickupCoordinates?.address
+                      : rideDetails.dropOffCoordinates?.address}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right ml-3">
+                <p className="text-yellow-600 font-bold text-lg">
+                  ₹{rideDetails.price}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Clock className="text-yellow-600" size={16} />
+                <span className="text-gray-700 text-sm font-medium">
                   {rideDetails.duration}
                 </span>
               </div>
-            </div>
-            <div className="flex flex-col space-y-2">
-              <button
-                onClick={handleCall}
-                className="bg-green-500 hover:bg-green-600 p-2 rounded-full transition-colors shadow-lg"
-              >
-                <Phone className="text-white" size={20} />
-              </button>
-              <button
-                onClick={() => setIsChatOpen(true)}
-                className="bg-blue-500 hover:bg-blue-600 p-2 rounded-full transition-colors shadow-lg"
-              >
-                <MessageCircle className="text-white" size={20} />
-              </button>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleCall}
+                  className="bg-green-500 hover:bg-green-600 p-2 rounded-full transition-colors shadow-lg"
+                >
+                  <Phone className="text-white" size={18} />
+                </button>
+                <button
+                  onClick={() => setIsChatOpen(true)}
+                  className="bg-blue-500 hover:bg-blue-600 p-2 rounded-full transition-colors shadow-lg"
+                >
+                  <MessageCircle className="text-white" size={18} />
+                </button>
+                <button
+                  onClick={() => setShowDetails(!showDetails)}
+                  className="bg-yellow-500 hover:bg-yellow-600 p-2 rounded-full transition-colors shadow-lg"
+                >
+                  {showDetails ? (
+                    <ChevronDown className="text-white" size={18} />
+                  ) : (
+                    <ChevronUp className="text-white" size={18} />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
-          {status === "Accepted" && (
-            <div className="mt-4 bg-yellow-50 rounded-xl p-4 border-2 border-yellow-500">
-              <p className="text-gray-700 text-sm text-center mb-3 font-semibold">
-                Enter Pickup PIN
-              </p>
-              <div className="flex justify-center space-x-2 mb-3">
-                {pinInput.map((digit, idx) => (
-                  <input
-                    key={idx}
-                    ref={(el) => (pinInputRefs.current[idx] = el)}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handlePinChange(idx, e.target.value)}
-                    onKeyDown={(e) => handlePinKeyDown(idx, e)}
-                    className="w-10 h-12 bg-white rounded-lg text-center text-gray-900 font-bold text-2xl border-2 border-yellow-500 focus:border-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all"
-                  />
-                ))}
+          {/* Expanded Details - Toggleable */}
+          {showDetails && (
+            <div className="border-t-2 border-yellow-200 bg-yellow-50 p-4 space-y-4">
+              {/* User Details */}
+              <div className="flex items-center space-x-3">
+                <img
+                  src={
+                    rideDetails.user?.userProfile ||
+                    "/images/default-avatar.png"
+                  }
+                  alt="User"
+                  className="w-14 h-14 rounded-full border-2 border-yellow-500"
+                />
+                <div className="flex-1">
+                  <h3 className="text-gray-900 font-bold text-base">
+                    {rideDetails.user?.userName}
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    {rideDetails.user?.userNumber}
+                  </p>
+                </div>
               </div>
-              {pinError && (
-                <div className="flex items-center justify-center space-x-1 mb-2">
-                  <AlertCircle className="text-red-500" size={16} />
-                  <p className="text-red-500 text-xs">{pinError}</p>
+
+              {/* PIN Input - Only for Accepted Status */}
+              {status === "Accepted" && (
+                <div className="bg-white rounded-xl p-4 border-2 border-yellow-500">
+                  <p className="text-gray-700 text-sm text-center mb-3 font-semibold">
+                    Enter Pickup PIN
+                  </p>
+                  <div className="flex justify-center space-x-2 mb-3">
+                    {pinInput.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        ref={(el) => (pinInputRefs.current[idx] = el)}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handlePinChange(idx, e.target.value)}
+                        onKeyDown={(e) => handlePinKeyDown(idx, e)}
+                        className="w-10 h-12 bg-white rounded-lg text-center text-gray-900 font-bold text-2xl border-2 border-yellow-500 focus:border-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all"
+                      />
+                    ))}
+                  </div>
+                  {pinError && (
+                    <div className="flex items-center justify-center space-x-1 mb-2">
+                      <AlertCircle className="text-red-500" size={16} />
+                      <p className="text-red-500 text-xs">{pinError}</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={handleSubmitPin}
+                    className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold py-2 rounded-full transition-all duration-300 shadow-lg"
+                  >
+                    Start Ride
+                  </button>
                 </div>
               )}
-              <button
-                onClick={handleSubmitPin}
-                className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold py-2 rounded-full transition-all duration-300 shadow-lg"
-              >
-                Start Ride
-              </button>
             </div>
           )}
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
-        <div className="bg-white backdrop-blur-lg rounded-2xl p-4 shadow-2xl border-2 border-yellow-500">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <MapPin className="text-yellow-600" size={20} />
-              <div>
-                <p className="text-gray-600 text-xs">
-                  {status === "Accepted"
-                    ? "Pickup Location"
-                    : "Drop-off Location"}
-                </p>
-                <p className="text-gray-900 text-sm font-semibold truncate max-w-[200px]">
-                  {status === "Accepted"
-                    ? rideDetails.pickupCoordinates?.address
-                    : rideDetails.dropOffCoordinates?.address}
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-gray-600 text-xs">Fare</p>
-              <p className="text-yellow-600 font-bold text-lg">
-                ₹{rideDetails.price}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      {/* Chat Modal */}
       {isChatOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center sm:justify-center">
           <div className="bg-white w-full sm:max-w-md sm:rounded-2xl h-[80vh] sm:h-[600px] flex flex-col border-2 border-yellow-500 shadow-2xl">
