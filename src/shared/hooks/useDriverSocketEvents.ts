@@ -1,7 +1,11 @@
 import { useEffect, useRef } from "react";
 import SocketService from "@/shared/services/socketService";
 import { useDispatch, useSelector } from "react-redux";
-import { rideCreate, rideLocationReceived } from "../services/redux/slices/rideSlice";
+import {
+  rideCreate,
+  rideLocationReceived,
+  updateRideStatus,
+} from "../services/redux/slices/rideSlice";
 import { notificationReceived } from "../services/redux/slices/notificationSlice";
 import { RootState } from "../services/redux/store";
 import { toast } from "./use-toast";
@@ -46,16 +50,35 @@ export function useDriverSocketEvents() {
     });
 
     const offRide = SocketService.on("ride:accepted", (data) => {
-      console.log("ride:accepted",data);
-      
-      dispatch(notificationReceived(data.driverNotification));
+      console.log("ride:accepted", data);
+
+      dispatch(notificationReceived(data.userNotification));
       dispatch(rideCreate(data.rideData));
+      dispatch(
+        rideLocationReceived({
+          ...data.driverLocation,
+          serverTs: data.driverLocation.serverTs || Date.now(),
+        })
+      );
     });
 
-    const offLocationUpdate = SocketService.on("driver:location:update", (data) => {
-      console.log("driver:location:update",data);
-      dispatch(rideLocationReceived({...data, serverTs: data.serverTs || Date.now()}))
+    const offRideStart = SocketService.on("ride:start", (data) => {
+      console.log("ride:start", data);
+      dispatch(updateRideStatus({ status: data }));
     });
+
+    const offLocationUpdate = SocketService.on(
+      "driver:location:update",
+      (data) => {
+        console.log("driver:location:update", data);
+        dispatch(
+          rideLocationReceived({
+            ...data,
+            serverTs: data.serverTs || Date.now(),
+          })
+        );
+      }
+    );
 
     // const offDriverLocation = SocketService.on("driver.location", (data) => {
     //   latestPosRef.current = data;
@@ -66,7 +89,7 @@ export function useDriverSocketEvents() {
 
     return () => {
       offNotification();
-      // offDriverLocation();
+      offRideStart();
       offRideRequest();
       offError();
       offRide();

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import type { DriverLocationMessage, RideDetails } from "@/shared/types/common";
+import type { DriverLocationMessage, RideDetails, RideStatus } from "@/shared/types/common";
 
 type PositionsMap = Record<string, DriverLocationMessage[]>; // rideId -> positions
 
@@ -13,7 +13,7 @@ const slice = createSlice({
     latest: {} as Record<string, DriverLocationMessage | undefined>,
     rideDetails: {} as RideDetails,
     positions: {} as PositionsMap,
-    status: "" as "Pending" | "Accepted" | "InRide" | "Completed" | "Cancelled" | "",
+    status: "" as RideStatus,
     chat: {} as any,
   },
   reducers: {
@@ -43,6 +43,10 @@ const slice = createSlice({
       state.rideDetails = s;
       state.status = s.status;
     },
+    updateRideStatus(state, action:PayloadAction<{status:RideStatus}>){
+      state.status=action.payload.status
+    },
+
      clearRide(state) {
       state.latest = {};
       state.positions = {};
@@ -53,5 +57,5 @@ const slice = createSlice({
   },
 });
 
-export const { rideLocationReceived, rideCreate, clearRide } = slice.actions;
+export const { rideLocationReceived, rideCreate, clearRide,updateRideStatus } = slice.actions;
 export default slice;

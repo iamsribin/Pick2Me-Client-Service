@@ -137,7 +137,7 @@ const DriverDashboard = () => {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#e8c58c] via-[#f5e5c8] to-[#ffffff] pb-20 sm:pb-4 sm:pl-64">
         <DriverNavbar />
-        <GlobalLoading isLoading={loading} loadingMessage="loading documents" />
+        <GlobalLoading isLoading={loading} loadingMessage="loading..." />
       </div>
     );
   }

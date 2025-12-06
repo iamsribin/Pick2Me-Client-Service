@@ -81,7 +81,7 @@ export type SocketEvent =
   export interface ResponseCom{
  data :any
 }
-
+export type RideStatus = "Pending" | "Accepted" | "InRide" | "Completed" | "Cancelled" | ""
 export interface DriverLocationMessage {
   rideId: string;
   driverId: string;

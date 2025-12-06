@@ -97,7 +97,7 @@ export default function RideRequestModal() {
       audioRef.current.currentTime = 0;
     }
     // navigate to driver ride page (adjust route)
-    navigate(`/driver/ride/${request.rideId || request.id}`);
+    navigate(`/driver/ride-tracking/${request.rideId || request.id}`);
   };
 
   const handleDecline = (reason = "declined") => {

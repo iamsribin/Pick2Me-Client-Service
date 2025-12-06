@@ -28,6 +28,7 @@ import { postData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
+import { calculateDistance } from "@/shared/utils/getDistanceInMeters";
 
 const libraries: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -163,24 +164,48 @@ const DriverRideTracking: React.FC = () => {
 
   const handleSubmitPin = async () => {
     try {
-      
       const enteredPin = pinInput.join("");
       if (enteredPin.length !== 6) {
         setPinError("Please enter all 6 digits");
         return;
       }
-      if (enteredPin !== rideDetails.pin.toString()) {
-        setPinError("Invalid PIN. Please try again.");
+      if (!driverLocation?.lat || !driverLocation?.lng) {
+        toast({
+          description: "Driver location not available",
+          variant: "error",
+        });
         return;
       }
-      const response = await postData(
-        DriverApiEndpoints.CHECK_SECURITY_PIN,
-        enteredPin
+
+      const driverDist = await calculateDistance(
+        driverLocation?.lat,
+        driverLocation?.lng,
+        rideDetails.pickupCoordinates.latitude,
+        rideDetails.pickupCoordinates.longitude
       );
+
+      if (driverDist > 500) {
+        toast({
+          description:
+            "You're too far from the pickup. You need to be within 500 meters.",
+          variant: "error",
+        });
+        return;
+      }
+
+      // if (enteredPin !== rideDetails.pin.toString()) {
+      //   setPinError("Invalid PIN. Please try again.");
+      //   return;
+      // }
+
+      const response = await postData(DriverApiEndpoints.CHECK_SECURITY_PIN, {
+        enteredPin,
+        _id: rideDetails.id,
+      });
       if (response?.status == 200)
-        toast({ description: "ride started successfully", variant: "error" });
+        toast({ description: "ride started successfully", variant: "success" });
     } catch (error) {
-      handleCustomError(error)
+      handleCustomError(error);
     }
   };
 
