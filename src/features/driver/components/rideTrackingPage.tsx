@@ -29,6 +29,7 @@ import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
 import { calculateDistance } from "@/shared/utils/getDistanceInMeters";
+import { Button } from "@/shared/components/ui/button";
 
 const libraries: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -226,6 +227,35 @@ const DriverRideTracking: React.FC = () => {
     }
   };
 
+  const handleCompleteRide = async () => {
+    try {
+      if (!driverLocation?.lat || !driverLocation?.lng) {
+        toast({
+          description: "Driver location not available",
+          variant: "error",
+        });
+        return;
+      }
+      const driverDist = await calculateDistance(
+        driverLocation?.lat,
+        driverLocation?.lng,
+        rideDetails.dropOffCoordinates.latitude,
+        rideDetails.dropOffCoordinates.longitude
+      );
+
+      if (driverDist > 500) {
+        toast({
+          description:
+            "You're too far from the drop location. You need to be within 500 meters.",
+          variant: "error",
+        });
+        return;
+      }
+    } catch (error) {
+      handleCustomError(error);
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -408,7 +438,9 @@ const DriverRideTracking: React.FC = () => {
                   {rideDetails.duration}
                 </span>
               </div>
-
+              {status == "InRide" && (
+                <Button onClick={handleCompleteRide}>complete ride</Button>
+              )}
               <div className="flex items-center space-x-2">
                 <button
                   onClick={handleCall}

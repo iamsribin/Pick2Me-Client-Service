@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import SocketService from "@/shared/services/socketService";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   clearRide,
   rideCreate,
@@ -9,24 +9,16 @@ import {
 } from "../services/redux/slices/rideSlice";
 import { notificationReceived } from "../services/redux/slices/notificationSlice";
 import { toast } from "./use-toast";
+import { RootState } from "../services/redux/store";
 
 export function useUserSocketEvents() {
   const dispatch = useDispatch();
-  // const latestPosRef = useRef<any>(null);
-  // const flushTimerRef = useRef<number | null>(null);
+  const user = useSelector((state: RootState) => state.user);
 
-  // const flush = () => {
-  //   if (latestPosRef.current) {
-  //     dispatch(rideLocationReceived(latestPosRef.current));
-  //     latestPosRef.current = null;
-  //   }
-  //   if (flushTimerRef.current) {
-  //     window.clearTimeout(flushTimerRef.current);
-  //     flushTimerRef.current = null;
-  //   }
-  // };
 
   useEffect(() => {
+    if (user.role !== "User") return;
+
     SocketService.connect();
 
     const offNotification = SocketService.on("notification", (data) => {
@@ -45,7 +37,7 @@ export function useUserSocketEvents() {
         })
       );
     });
-    
+
     const offRideStart = SocketService.on("ride:start", (data) => {
       console.log("ride:start", data);
       dispatch(updateRideStatus({ status: data }));

@@ -10,8 +10,10 @@ import ProtectedRoute from "@/routes/protected-route";
 import NotFound from "@/shared/components/NotFound";
 import AppRoutes from "@/constants/app-routes";
 import UserDetails from "../pages/user/UserDetailsPage";
+import { useAdminSocketEvents } from "@/shared/hooks/useAdminSocketEvents";
 
 function AdminRoutes() {
+  useAdminSocketEvents();
   return (
     <Routes>
         <Route element={<ProtectedRoute allowedRole={"Admin"} />}>

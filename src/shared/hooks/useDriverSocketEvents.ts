@@ -13,19 +13,7 @@ import { showRideRequest } from "../services/redux/slices/rideRequestSlice";
 
 export function useDriverSocketEvents() {
   const dispatch = useDispatch();
-  // const latestPosRef = useRef<any>(null);
-  // const flushTimerRef = useRef<number | null>(null);
 
-  // const flush = () => {
-  //   if (latestPosRef.current) {
-  //     dispatch(rideLocationReceived(latestPosRef.current));
-  //     latestPosRef.current = null;
-  //   }
-  //   if (flushTimerRef.current) {
-  //     window.clearTimeout(flushTimerRef.current);
-  //     flushTimerRef.current = null;
-  //   }
-  // };
   const user = useSelector((state: RootState) => state.user);
 
   useEffect(() => {
@@ -80,13 +68,6 @@ export function useDriverSocketEvents() {
       }
     );
 
-    // const offDriverLocation = SocketService.on("driver.location", (data) => {
-    //   latestPosRef.current = data;
-    //   if (!flushTimerRef.current) {
-    //     flushTimerRef.current = window.setTimeout(flush, 200);
-    //   }
-    // });
-
     return () => {
       offNotification();
       offRideStart();
@@ -94,14 +75,7 @@ export function useDriverSocketEvents() {
       offError();
       offRide();
       offLocationUpdate();
-      // if (flushTimerRef.current) {
-      //   window.clearTimeout(flushTimerRef.current);
-      //   flushTimerRef.current = null;
-      // }
-      // latestPosRef.current = null;
 
-      // tab to release leadership
-      // socket connected at App-level; only disconnect on logout or unmount of App
     };
   }, [dispatch, user.role]);
 }
