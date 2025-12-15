@@ -26,7 +26,7 @@
             RideData:RideDataPersistReducer,
             user: UserPersistReducer,
             rideRequest:rideRequestSlice,
-            issue:IssueReducer
+            issues:IssueReducer
         },
         middleware: (getDefaultMiddleware) => {
             const middleware = getDefaultMiddleware({
