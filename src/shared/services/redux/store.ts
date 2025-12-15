@@ -8,6 +8,7 @@
     import rideSlice from "./slices/rideSlice";
     import UserSlice from "./slices/userSlice";
     import rideRequestSlice from "./slices/rideRequestSlice";
+    import issueSlice from "./slices/issuesSlice";
     import { socketMiddleware } from "@/shared/middlewares/socketMiddleware";
 
     const RideDataPersistConfig={key:"RideData",storage,version:1}
@@ -17,13 +18,15 @@
     const RideDataPersistReducer=persistReducer(RideDataPersistConfig,rideSlice.reducer)   
     const UserPersistReducer = persistReducer(UserPersistConfig, UserSlice.reducer);
     const NotificationReducer = persistReducer(NotificationPersistConfig, notificationSlice.reducer);
+    const IssueReducer = persistReducer(NotificationPersistConfig, issueSlice.reducer);
 
     export const store=configureStore({
         reducer:{
             notification: NotificationReducer,
             RideData:RideDataPersistReducer,
             user: UserPersistReducer,
-            rideRequest:rideRequestSlice
+            rideRequest:rideRequestSlice,
+            issue:IssueReducer
         },
         middleware: (getDefaultMiddleware) => {
             const middleware = getDefaultMiddleware({

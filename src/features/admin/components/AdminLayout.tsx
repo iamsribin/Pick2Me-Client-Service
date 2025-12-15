@@ -30,10 +30,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           <SidebarHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                <span className="text-xl font-bold text-blue-600">RR</span>
+                <span className="text-xl font-bold text-blue-600">2</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold">Retro Routes</h2>
+                <h2 className="text-xl font-bold">Pick2Me</h2>
                 <p className="text-xs text-blue-100">Admin Panel</p>
               </div>
             </div>
@@ -46,7 +46,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 { to: '/admin/users', icon: Users, label: 'Users' },
                 { to: '/admin/drivers', icon: Car, label: 'Drivers' },
                 { to: '/admin/offers', icon: Gift, label: 'Offers' },
-                { to: '/admin/reports', icon: PieChart, label: 'Reports' },
+                { to: '/admin/issues', icon: PieChart, label: 'Issues' },
               ].map((item) => {
                 const isActive = location.pathname.startsWith(item.to);
                 return (
