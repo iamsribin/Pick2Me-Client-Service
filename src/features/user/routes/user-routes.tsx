@@ -2,16 +2,22 @@ import { Routes, Route } from "react-router-dom";
 import ProtectedRoute from "@/routes/protected-route";
 import AppRoutes from "@/constants/app-routes";
 import NotFound from "@/shared/components/NotFound";
-import RideMap from "../pages/RideMap";
 import BookingTransaction from "../pages/BookingTransaction";
 import BookingDetails from "../pages/BookingDetails";
 import PaymentPage from "../components/ride/PaymentPage";
 import PublicRoutes from "@/routes/public-route";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
 import { useUserSocketEvents } from "@/shared/hooks/useUserSocketEvents";
 import UserRideTracking from "../components/rideTrackingPage";
+import { useDispatch } from "react-redux";
+import { fetchData } from "@/shared/services/api/api-service";
+import { CommonApiEndPoint } from "@/constants/common-api-ent-point";
+import { handleCustomError } from "@/shared/utils/error";
+import { setNotifications } from "@/shared/services/redux/slices/notificationSlice";
+import { ResponseCom } from "@/shared/types/common";
+import { store } from "@/shared/services/redux/store";
 
 const UserProfile = lazy(() => import("../pages/UserProfile"));
 const LoginPage = lazy(() => import("../pages/LoginPage"));
@@ -27,6 +33,25 @@ const loaderProps = {
 
 function UserRoutes() {
   useUserSocketEvents()
+  const dispatch = useDispatch();
+    useEffect(() => {
+      (async () => {
+        try {
+          if(store.getState().user.role !== "User") return;
+          const res = await fetchData<ResponseCom["data"]>(CommonApiEndPoint.NOTIFICATIONS);
+  
+          if (res?.status == 200) {
+            const notifications = res.data.data;
+            console.log("notifications",notifications);
+            
+            dispatch(setNotifications(notifications));
+            }
+        } catch (error) {
+          handleCustomError(error);
+        }
+      })();
+    }, []);
+    
   return (
     <Suspense
       fallback={

@@ -5,15 +5,15 @@ self.addEventListener('push', (event) => {
   // Show notification
   const title = data.title || 'New issue';
   const options = {
-    body: data.body || 'A new issue was created',
+    body: 'A new issue was created',
     data: data,
     tag: 'issue-created'
   };
 
-  // Update IndexedDB count (simple implementation)
+  // Update IndexedDB count 
   event.waitUntil(
     (async () => {
-      await incrementIssueCountInIDB(); // implement below
+      await incrementIssueCountInIDB(); 
       await self.registration.showNotification(title, options);
       // notify open clients
       const clientList = await clients.matchAll({ includeUncontrolled: true, type: 'window' });

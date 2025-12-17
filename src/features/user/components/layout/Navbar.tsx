@@ -44,7 +44,6 @@ const Navbar: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Blinking effect for active ride button
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (rideData) {

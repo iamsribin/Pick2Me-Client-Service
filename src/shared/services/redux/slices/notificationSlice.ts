@@ -8,11 +8,12 @@ const slice = createSlice({
     lastSeenId: null as string | null,
   },
   reducers: {
+
     notificationReceived(state, action: PayloadAction<NotificationMessage>) {
       const n = action.payload;
       // dedupe
       if (state.items.some(i => i.id === n.id)) return;
-      state.items.unshift(n); 
+      state.items.unshift(n);
     },
     markRead(state, action: PayloadAction<string>) {
       const id = action.payload;
@@ -37,9 +38,9 @@ const slice = createSlice({
   },
 });
 
-export const { 
-  notificationReceived, 
-  markRead, 
+export const {
+  notificationReceived,
+  markRead,
   markAllAsRead,
   clearNotification,
   clearAllNotifications,

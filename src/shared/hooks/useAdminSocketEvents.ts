@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import SocketService from '@/shared/services/socketService';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, store } from '@/shared/services/redux/store';
-import { incrementUnread } from '../services/redux/slices/issuesSlice'; 
+import { incrementUnread } from '../services/redux/slices/issuesSlice';
 import { toast } from './use-toast';
 
 export function useAdminSocketEvents() {
@@ -14,12 +14,16 @@ export function useAdminSocketEvents() {
     SocketService.connect();
 
     const offNotification = SocketService.on('issue:created', (data) => {
-        
+
       dispatch(incrementUnread());
       toast({ description: 'New issue reported', variant: 'default' });
       if ('setAppBadge' in navigator) {
+        console.log("setAppBadge");
+
         navigator.setAppBadge?.(store.getState().issues.unreadCount);
       } else {
+        console.log("not setAppBadge");
+
         document.title = `(${store.getState().issues.unreadCount}) Admin Panel`;
       }
     });

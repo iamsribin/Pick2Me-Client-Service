@@ -13,6 +13,7 @@ import { userLogin } from "@/shared/services/redux/slices/userSlice";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
 import UserApiEndpoints from "@/constants/user-api-end-pointes";
+import { registerPush } from "@/shared/utils/push";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -57,6 +58,7 @@ const Login = () => {
         toast({ description: "Login Success", variant: "success" });
         dispatch(userLogin({ name: res.name, role, id: res._id }));
         if (role === "Admin") {
+          await registerPush();
           navigate("/admin/dashboard");
         } else {
           navigate("/");

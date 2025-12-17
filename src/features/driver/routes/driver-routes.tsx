@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import PublicRoute from "@/routes/public-route";
 import ProtectedRoute from "@/routes/protected-route";
@@ -9,6 +9,13 @@ import { LocationProvider } from "@/context/locationProvider";
 import DriverWallet from "../pages/WallerPage";
 import RideRequestModal from "../components/RideRequestModal";
 import DriverRideTracking from "../components/rideTrackingPage";
+import { useDispatch } from "react-redux";
+import { store } from "@/shared/services/redux/store";
+import { fetchData } from "@/shared/services/api/api-service";
+import { ResponseCom } from "@/shared/types/common";
+import { CommonApiEndPoint } from "@/constants/common-api-ent-point";
+import { setNotifications } from "@/shared/services/redux/slices/notificationSlice";
+import { handleCustomError } from "@/shared/utils/error";
 
 const DriverLoginPage = lazy(() => import("../pages/auth/DriverLoginPage"));
 const DriverSignupPage = lazy(() => import("../pages/auth/DriverSignupPage"));
@@ -29,6 +36,24 @@ function DriverRoutes() {
     loadingMessage: "Loading page...",
   };
   useDriverSocketEvents();
+    const dispatch = useDispatch();
+      useEffect(() => {
+        (async () => {
+          try {
+            if(store.getState().user.role !== "Driver") return;
+            const res = await fetchData<ResponseCom["data"]>(CommonApiEndPoint.NOTIFICATIONS);
+    
+            if (res?.status == 200) {
+              const notifications = res.data.data;
+              console.log("notifications",notifications);
+              
+              dispatch(setNotifications(notifications));
+              }
+          } catch (error) {
+            handleCustomError(error);
+          }
+        })();
+      }, []);
   return (
     <>
       <RideRequestModal />

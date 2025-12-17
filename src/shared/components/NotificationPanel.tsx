@@ -63,7 +63,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       const response = await patchData(
-        CommonApiEndPoint.MARK_AS_READ.replace(":id", notificationId)
+        CommonApiEndPoint.MARK_AS_READ.replace(":id", notificationId),{}
       );
       if (response?.status === 200) {
         dispatch(markRead(notificationId));
