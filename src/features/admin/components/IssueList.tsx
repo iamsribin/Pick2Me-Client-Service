@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -21,6 +21,9 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { fetchData } from "@/shared/services/api/api-service";
 import { AdminApiEndpoints } from "@/constants/admin-api-end-pointes";
+import { Coordinates } from "@/shared/types/common";
+import { coordinatesToAddress } from "@/shared/utils/locationToAddress";
+import { useNavigate } from "react-router-dom";
 
 interface Issue {
   id: string;
@@ -49,6 +52,7 @@ interface Issue {
     longitude: number;
     address: string;
   };
+  currentLocation: Coordinates;
   createdAt: string;
 }
 
@@ -65,6 +69,7 @@ const IssuesList: React.FC<IssuesListProps> = ({
   loading = false,
   onUpdateSuccess,
 }) => {
+  const navigate = useNavigate();
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [detailsType, setDetailsType] = useState<
     "user" | "driver" | "route" | null
@@ -76,17 +81,51 @@ const IssuesList: React.FC<IssuesListProps> = ({
   );
   const [isUpdating, setIsUpdating] = useState(false);
   const [noteError, setNoteError] = useState("");
+  const [currentLocationAddress, setCurrentLocationAddress] = useState<
+    string | null
+  >(null);
+  const [loadingAddress, setLoadingAddress] = useState(false);
 
   const handleCall = (phoneNumber: string) => {
     window.location.href = `tel:${phoneNumber}`;
   };
 
-  const handleShowDetails = (
+  const handleNavigateToProfile = (type: "user" | "driver" | "route" | null, id: string) => {
+    if (type === "user") {
+      navigate(`/admin/users/${id}`);
+    } else {
+      navigate(`/admin/drivers/${id}`);
+    }
+  };
+
+  const handleShowDetails = async (
     issue: Issue,
     type: "user" | "driver" | "route"
   ) => {
     setSelectedIssue(issue);
     setDetailsType(type);
+console.log(issue.currentLocation?.latitude ,issue.currentLocation?.longitude,type);
+
+    if (type === "route") {
+      setCurrentLocationAddress(null);
+      if (issue.currentLocation?.latitude && issue.currentLocation?.longitude) {
+        setLoadingAddress(true);
+        try {
+          const address = await coordinatesToAddress(
+            issue.currentLocation.latitude,
+            issue.currentLocation.longitude
+          );
+          console.log("address",address);
+          
+          setCurrentLocationAddress(address);
+        } catch (error) {
+          console.error("Failed to fetch current location address:", error);
+          setCurrentLocationAddress("Not available");
+        } finally {
+          setLoadingAddress(false);
+        }
+      }
+    }
   };
 
   const handleUpdateClick = (issue: Issue) => {
@@ -325,10 +364,28 @@ const IssuesList: React.FC<IssuesListProps> = ({
                       : selectedIssue.driver.driverProfile
                   }
                   alt="Profile"
-                  className="w-16 h-16 rounded-full object-cover"
+                  className="w-16 h-16 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() =>
+                    handleNavigateToProfile(
+                      detailsType!,
+                      detailsType === "user"
+                        ? selectedIssue.user.userId
+                        : selectedIssue.driver.driverId
+                    )
+                  }
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-lg truncate">
+                  <p
+                    className="font-semibold text-lg truncate cursor-pointer hover:text-blue-600 transition-colors"
+                    onClick={() =>
+                      handleNavigateToProfile(
+                        detailsType!,
+                        detailsType === "user"
+                          ? selectedIssue.user.userId
+                          : selectedIssue.driver.driverId
+                      )
+                    }
+                  >
                     {detailsType === "user"
                       ? selectedIssue.user.userName
                       : selectedIssue.driver.driverName}
@@ -378,6 +435,7 @@ const IssuesList: React.FC<IssuesListProps> = ({
           {selectedIssue && (
             <div className="space-y-6">
               <div className="space-y-4">
+                {/* Pickup Location */}
                 <div className="flex items-start gap-3">
                   <div className="mt-1 bg-green-100 rounded-full p-2">
                     <MapPin className="h-5 w-5 text-green-600" />
@@ -401,6 +459,57 @@ const IssuesList: React.FC<IssuesListProps> = ({
                   <div className="border-l-2 border-dashed border-gray-300 h-8"></div>
                 </div>
 
+                {/* Current Location */}
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 bg-blue-100 rounded-full p-2">
+                    <MapPin className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Driver's Current Location
+                    </p>
+                    {selectedIssue.currentLocation?.latitude &&
+                    selectedIssue.currentLocation?.longitude ? (
+                      <>
+                        {loadingAddress ? (
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span className="text-sm text-muted-foreground">
+                              Loading address...
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold mb-1">
+                              {currentLocationAddress ||
+                                "Address not available"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Lat:{" "}
+                              {selectedIssue.currentLocation.latitude.toFixed(
+                                6
+                              )}
+                              , Lng:{" "}
+                              {selectedIssue.currentLocation.longitude.toFixed(
+                                6
+                              )}
+                            </p>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Not available
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center">
+                  <div className="border-l-2 border-dashed border-gray-300 h-8"></div>
+                </div>
+
+                {/* Drop-off Location */}
                 <div className="flex items-start gap-3">
                   <div className="mt-1 bg-red-100 rounded-full p-2">
                     <MapPin className="h-5 w-5 text-red-600" />

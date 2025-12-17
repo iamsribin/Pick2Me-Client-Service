@@ -7,11 +7,18 @@ import { usePaginatedSearch } from "@/shared/hooks/usePaginatedSearch";
 import { AdminApiEndpoints } from "@/constants/admin-api-end-pointes";
 import { SearchInput } from "@/shared/components/SearchInput";
 import { Pagination } from "@/shared/components/Pagination";
-
+import { useJsApiLoader } from "@react-google-maps/api";
+import {
+  libraries,
+} from "@/constants/map-options"
 const Issues: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"pending" | "resolved" | "reissued">(
     "pending"
   );
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
+    libraries,
+  });
 
   const fetchIssues = useCallback(
     async ({ page, limit, search, signal }: any) => {
