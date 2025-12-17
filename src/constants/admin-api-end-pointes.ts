@@ -1,7 +1,8 @@
 export enum AdminApiEndpoints {
   BASE = "/admin",
   ADD_SUBSCRIPTION = '/notifications/admin/push/subscribe',
-  FETCH_ISSUES ='/notifications/admin/issues/unread-count',
+  FETCH_ISSUES_COUNT ='/notifications/admin/issues/unread-count',
+  ISSUES ='/notifications/admin/issues',
   // Drivers
   DRIVERS = "/admin/drivers",                        
   DRIVER = "/admin/drivers/:id",   

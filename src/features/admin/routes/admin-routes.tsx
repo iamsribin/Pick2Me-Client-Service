@@ -18,8 +18,12 @@ import { useDispatch } from "react-redux";
 import { fetchData } from "@/shared/services/api/api-service";
 import { AdminApiEndpoints } from "@/constants/admin-api-end-pointes";
 import { handleCustomError } from "@/shared/utils/error";
+import { ResponseCom } from "@/shared/types/common";
+import { store } from "@/shared/services/redux/store";
+import Issues from "../pages/admin/IssuePage";
 
 function AdminRoutes() {
+  
   const dispatch = useDispatch();
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -29,15 +33,18 @@ function AdminRoutes() {
         }
       });
     }
-
+    console.log("isuue",store.getState().issues.unreadCount);
+    
     (async () => {
       try {
-        const res = await fetchData(AdminApiEndpoints.FETCH_ISSUES);
+        const res = await fetchData<ResponseCom["data"]>(AdminApiEndpoints.FETCH_ISSUES_COUNT);
+      console.log("res",res?.data);
 
         if (res?.status == 200) {
-          const count = res.data as number;
+          const count = res.data.data as number;
+          console.log(count);
           dispatch(setUnreadCount(count));
-
+           // @ts-ignore
           if (navigator.setAppBadge) await navigator.setAppBadge(count);
         }
       } catch (error) {
@@ -55,6 +62,7 @@ function AdminRoutes() {
         <Route path={AppRoutes.ADMIN_DRIVERS} element={<Drivers />} />
         <Route path={"drivers/:id"} element={<DriverDetails />} />
         <Route path={"users/:id"} element={<UserDetails />} />
+        <Route path={"issues"} element={<Issues />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

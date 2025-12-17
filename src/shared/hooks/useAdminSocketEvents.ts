@@ -14,6 +14,7 @@ export function useAdminSocketEvents() {
     SocketService.connect();
 
     const offNotification = SocketService.on('issue:created', (data) => {
+    console.log("issue:created");
 
       dispatch(incrementUnread());
       toast({ description: 'New issue reported', variant: 'default' });

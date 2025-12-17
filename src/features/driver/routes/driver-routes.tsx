@@ -42,11 +42,8 @@ function DriverRoutes() {
           try {
             if(store.getState().user.role !== "Driver") return;
             const res = await fetchData<ResponseCom["data"]>(CommonApiEndPoint.NOTIFICATIONS);
-    
             if (res?.status == 200) {
-              const notifications = res.data.data;
-              console.log("notifications",notifications);
-              
+              const notifications = res.data.data;              
               dispatch(setNotifications(notifications));
               }
           } catch (error) {

@@ -2,31 +2,39 @@ import { AdminApiEndpoints } from "@/constants/admin-api-end-pointes";
 import { postData } from "../services/api/api-service";
 
 export async function registerPush(): Promise<void> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    return;
+  try {
+
+    console.log("registerPush");
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return;
+    }
+    const appServerKey = import.meta.env.VITE_VAPID_PUBLIC
+    const registration: ServiceWorkerRegistration =
+      await navigator.serviceWorker.register('/sw.js');
+
+    const permission: NotificationPermission =
+      await Notification.requestPermission();
+
+    if (permission !== 'granted') {
+      return;
+    }
+
+    let subscription: PushSubscription | null =
+      await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(appServerKey) as BufferSource
+      });
+    }
+
+    await postData(AdminApiEndpoints.ADD_SUBSCRIPTION, subscription);
+  } catch (error) {
+    console.error(error);
+
   }
-const appServerKey = import.meta.env.VITE_VAPID_PUBLIC
-  const registration: ServiceWorkerRegistration =
-    await navigator.serviceWorker.register('/sw.js');
-
-  const permission: NotificationPermission =
-    await Notification.requestPermission();
-
-  if (permission !== 'granted') {
-    return;
-  } 
-
-  let subscription: PushSubscription | null =
-    await registration.pushManager.getSubscription();
-
-  if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(appServerKey) as BufferSource
-    });
-  }
-
-  await postData(AdminApiEndpoints.ADD_SUBSCRIPTION, subscription);
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
