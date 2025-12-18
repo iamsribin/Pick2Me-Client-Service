@@ -19,11 +19,15 @@ import {
 } from "@/shared/components/ui/dialog";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import { fetchData } from "@/shared/services/api/api-service";
+import { fetchData, patchData } from "@/shared/services/api/api-service";
 import { AdminApiEndpoints } from "@/constants/admin-api-end-pointes";
 import { Coordinates } from "@/shared/types/common";
 import { coordinatesToAddress } from "@/shared/utils/locationToAddress";
 import { useNavigate } from "react-router-dom";
+import { handleCustomError } from "@/shared/utils/error";
+import { toast } from "@/shared/hooks/use-toast";
+import { useDispatch } from "react-redux";
+import { decrementUnread } from "@/shared/services/redux/slices/issuesSlice";
 
 interface Issue {
   id: string;
@@ -85,12 +89,16 @@ const IssuesList: React.FC<IssuesListProps> = ({
     string | null
   >(null);
   const [loadingAddress, setLoadingAddress] = useState(false);
+  const dispatch = useDispatch();
 
   const handleCall = (phoneNumber: string) => {
     window.location.href = `tel:${phoneNumber}`;
   };
 
-  const handleNavigateToProfile = (type: "user" | "driver" | "route" | null, id: string) => {
+  const handleNavigateToProfile = (
+    type: "user" | "driver" | "route" | null,
+    id: string
+  ) => {
     if (type === "user") {
       navigate(`/admin/users/${id}`);
     } else {
@@ -104,7 +112,6 @@ const IssuesList: React.FC<IssuesListProps> = ({
   ) => {
     setSelectedIssue(issue);
     setDetailsType(type);
-console.log(issue.currentLocation?.latitude ,issue.currentLocation?.longitude,type);
 
     if (type === "route") {
       setCurrentLocationAddress(null);
@@ -115,8 +122,8 @@ console.log(issue.currentLocation?.latitude ,issue.currentLocation?.longitude,ty
             issue.currentLocation.latitude,
             issue.currentLocation.longitude
           );
-          console.log("address",address);
-          
+          console.log("address", address);
+
           setCurrentLocationAddress(address);
         } catch (error) {
           console.error("Failed to fetch current location address:", error);
@@ -144,10 +151,15 @@ console.log(issue.currentLocation?.latitude ,issue.currentLocation?.longitude,ty
 
     setIsUpdating(true);
     try {
-      await fetchData(`${AdminApiEndpoints.ISSUES}/${selectedIssue?.id}`);
+      await patchData(`${AdminApiEndpoints.ISSUES}/${selectedIssue?.id}`, {
+        note: updateNote,
+      });
       setUpdateDialogOpen(false);
       onUpdateSuccess?.();
+      dispatch(decrementUnread());
+      toast({ description: "Issue updated successfully", variant: "success" });
     } catch (error) {
+      handleCustomError(error);
       console.error("Failed to update issue:", error);
     } finally {
       setIsUpdating(false);
@@ -272,7 +284,9 @@ console.log(issue.currentLocation?.latitude ,issue.currentLocation?.longitude,ty
                 <TableHead className="min-w-[200px]">Note</TableHead>
               )}
               <TableHead className="min-w-[100px]">Status</TableHead>
+              {status !== "resolved" && (
               <TableHead className="min-w-[120px]">Actions</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
