@@ -122,8 +122,6 @@ const IssuesList: React.FC<IssuesListProps> = ({
             issue.currentLocation.latitude,
             issue.currentLocation.longitude
           );
-          console.log("address", address);
-
           setCurrentLocationAddress(address);
         } catch (error) {
           console.error("Failed to fetch current location address:", error);

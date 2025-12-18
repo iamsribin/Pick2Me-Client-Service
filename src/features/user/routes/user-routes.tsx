@@ -18,6 +18,10 @@ import { handleCustomError } from "@/shared/utils/error";
 import { setNotifications } from "@/shared/services/redux/slices/notificationSlice";
 import { ResponseCom } from "@/shared/types/common";
 import { store } from "@/shared/services/redux/store";
+import {
+  rideCreate,
+  rideLocationReceived,
+} from "@/shared/services/redux/slices/rideSlice";
 
 const UserProfile = lazy(() => import("../pages/UserProfile"));
 const LoginPage = lazy(() => import("../pages/LoginPage"));
@@ -32,26 +36,54 @@ const loaderProps = {
 };
 
 function UserRoutes() {
-  useUserSocketEvents()
+  useUserSocketEvents();
   const dispatch = useDispatch();
-    useEffect(() => {
-      (async () => {
-        try {
-          if(store.getState().user.role !== "User") return;
-          const res = await fetchData<ResponseCom["data"]>(CommonApiEndPoint.NOTIFICATIONS);
-  
-          if (res?.status == 200) {
-            const notifications = res.data.data;
-            console.log("notifications",notifications);
-            
-            dispatch(setNotifications(notifications));
-            }
-        } catch (error) {
-          handleCustomError(error);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (store.getState().user.role !== "User") return;
+        const res = await fetchData<ResponseCom["data"]>(
+          CommonApiEndPoint.NOTIFICATIONS
+        );
+
+        if (res?.status == 200) {
+          const notifications = res.data.data;
+          console.log("notifications", notifications);
+
+          dispatch(setNotifications(notifications));
         }
-      })();
-    }, []);
-    
+      } catch (error) {
+        handleCustomError(error);
+      }
+    })();
+
+    (async () => {
+      try {
+        if (store.getState().user.role !== "User") return;
+        const res = await fetchData<ResponseCom["data"]>(
+          CommonApiEndPoint.BOOKING_DATA
+        );
+
+        if (res?.status == 200) {
+          const data = res.data;
+          
+          dispatch(rideCreate(data.rideData));
+          if (data.driverLocation) {
+            dispatch(
+              rideLocationReceived({
+                ...data.driverLocation,
+                serverTs: data.driverLocation.serverTs || Date.now(),
+              })
+            );
+          }
+        }
+      } catch (error) {
+        handleCustomError(error);
+      }
+    })();
+  }, []);
+
   return (
     <Suspense
       fallback={
@@ -65,7 +97,10 @@ function UserRoutes() {
 
         <Route element={<ProtectedRoute allowedRole={ROLE} />}>
           <Route path={AppRoutes.PROFILE} element={<UserProfile />} />
-              <Route path={"/ride-tracking/:rideId"} element={<UserRideTracking />} />
+          <Route
+            path={"/ride-tracking/:rideId"}
+            element={<UserRideTracking />}
+          />
 
           {/* 
              <Route path={AppRoutes.TRIPS} element={<ProtectedRoute allowedRole={ROLE}><BookingTransaction/></ProtectedRoute>}/>

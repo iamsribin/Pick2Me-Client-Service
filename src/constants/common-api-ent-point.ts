@@ -1,5 +1,6 @@
 export enum CommonApiEndPoint{
 VEHICLE_MODELS = "/bookings/vehicles",
+BOOKING_DATA = "/bookings/me/booking-data",
 
 NOTIFICATIONS = "/notifications/me/notifications",
 CLEAR_NOTIFICATION= "/notifications/me/:id",

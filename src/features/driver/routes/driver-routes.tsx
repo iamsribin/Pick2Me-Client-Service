@@ -16,6 +16,10 @@ import { ResponseCom } from "@/shared/types/common";
 import { CommonApiEndPoint } from "@/constants/common-api-ent-point";
 import { setNotifications } from "@/shared/services/redux/slices/notificationSlice";
 import { handleCustomError } from "@/shared/utils/error";
+import {
+  rideCreate,
+  rideLocationReceived,
+} from "@/shared/services/redux/slices/rideSlice";
 
 const DriverLoginPage = lazy(() => import("../pages/auth/DriverLoginPage"));
 const DriverSignupPage = lazy(() => import("../pages/auth/DriverSignupPage"));
@@ -36,21 +40,47 @@ function DriverRoutes() {
     loadingMessage: "Loading page...",
   };
   useDriverSocketEvents();
-    const dispatch = useDispatch();
-      useEffect(() => {
-        (async () => {
-          try {
-            if(store.getState().user.role !== "Driver") return;
-            const res = await fetchData<ResponseCom["data"]>(CommonApiEndPoint.NOTIFICATIONS);
-            if (res?.status == 200) {
-              const notifications = res.data.data;              
-              dispatch(setNotifications(notifications));
-              }
-          } catch (error) {
-            handleCustomError(error);
+  const dispatch = useDispatch();
+  useEffect(() => {
+    (async () => {
+      try {
+        if (store.getState().user.role !== "Driver") return;
+        const res = await fetchData<ResponseCom["data"]>(
+          CommonApiEndPoint.NOTIFICATIONS
+        );
+        if (res?.status == 200) {
+          const notifications = res.data.data;
+          dispatch(setNotifications(notifications));
+        }
+      } catch (error) {
+        handleCustomError(error);
+      }
+    })();
+
+    (async () => {
+      try {
+        if (store.getState().user.role !== "Driver") return;
+        const res = await fetchData<ResponseCom["data"]>(
+          CommonApiEndPoint.BOOKING_DATA
+        );
+
+        if (res?.status == 200) {
+          const data = res.data;
+          dispatch(rideCreate(data.rideData));
+          if (data.driverLocation) {
+            dispatch(
+              rideLocationReceived({
+                ...data.driverLocation,
+                serverTs: data.driverLocation.serverTs || Date.now(),
+              })
+            );
           }
-        })();
-      }, []);
+        }
+      } catch (error) {
+        handleCustomError(error);
+      }
+    })();
+  }, []);
   return (
     <>
       <RideRequestModal />
@@ -62,7 +92,10 @@ function DriverRoutes() {
               <Route path={AppRoutes.PROFILE} element={<DriverProfile />} />
               <Route path={AppRoutes.DOCUMENTS} element={<DriverDocuments />} />
               <Route path={AppRoutes.WALLET} element={<DriverWallet />} />
-              <Route path={"ride-tracking/:rideId"} element={<DriverRideTracking />} />
+              <Route
+                path={"ride-tracking/:rideId"}
+                element={<DriverRideTracking />}
+              />
             </Route>
 
             <Route element={<PublicRoute allowedRoles={["Driver"]} />}>
