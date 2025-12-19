@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import "mapbox-gl/dist/mapbox-gl.css";
 import SignupMap from "./SignupMap";
 import { useJsApiLoader } from "@react-google-maps/api";
-import { geocodeLatLng } from "@/shared/utils/locationToAddress";
+import { coordinatesToAddress } from "@/shared/utils/locationToAddress";
 import { getItem, removeItem } from "@/shared/utils/localStorage";
 import { postData } from "@/shared/services/api/api-service";
 import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
@@ -59,7 +59,7 @@ function DriverLocation() {
       if (isLoaded) {
         try {
           setLoad(true);
-          const address = await geocodeLatLng(
+          const address = await coordinatesToAddress(
             values.latitude,
             values.longitude
           );
@@ -81,7 +81,7 @@ function DriverLocation() {
             address,
           };
          const res = await postData(
-            `${DriverApiEndpoints.DRIVER_LOCATION}?driverId=${driverId}`,
+            `${DriverApiEndpoints.REGISTER_LOCATION}?driverId=${driverId}`,
             requestData
           );
           if(res && res.status === 200){

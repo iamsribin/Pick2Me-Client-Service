@@ -14,17 +14,12 @@ export function useAdminSocketEvents() {
     SocketService.connect();
 
     const offNotification = SocketService.on('issue:created', (data) => {
-    console.log("issue:created");
 
       dispatch(incrementUnread());
       toast({ description: 'New issue reported', variant: 'default' });
       if ('setAppBadge' in navigator) {
-        console.log("setAppBadge");
-
         navigator.setAppBadge?.(store.getState().issues.unreadCount);
       } else {
-        console.log("not setAppBadge");
-
         document.title = `(${store.getState().issues.unreadCount}) Admin Panel`;
       }
     });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { v4 as uuidv4 } from "uuid";
 import {
   GoogleMap,
   Marker,
@@ -14,7 +15,6 @@ import {
   Send,
   ImagePlus,
   MapPin,
-  User,
   CheckCircle,
   Loader,
   AlertCircle,
@@ -30,6 +30,15 @@ import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
 import { calculateDistance } from "@/shared/utils/getDistanceInMeters";
 import { Button } from "@/shared/components/ui/button";
+import socketService from "@/shared/services/socketService";
+import { emitSocket } from "@/shared/utils/emitSocket";
+import {
+  addMessage,
+  ChatMessage,
+  deleteMessage,
+  editMessage,
+  markChatAsRead,
+} from "@/shared/services/redux/slices/rideSlice";
 
 const libraries: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -52,21 +61,33 @@ const mapOptions = {
 
 const DriverRideTracking: React.FC = () => {
   const navigate = useNavigate();
-  const { rideId } = useParams();
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
     libraries,
   });
-
-  const displayPos = useAnimatedDriverMarker(rideId);
-
   const rideDetails = useSelector(
     (state: RootState) => state.RideData.rideDetails
   );
+  const rideId = rideDetails.rideId;
+
+  const displayPos = useAnimatedDriverMarker(rideId);
+  const dispatch = useDispatch();
+
   const status = useSelector((state: RootState) => state.RideData.status);
   const driverLocation = useSelector(
     (state: RootState) => state.RideData.latest[rideId || ""]
   );
+  const messages = useSelector(
+    (state: RootState) => state.RideData.chat[rideId || ""] ?? []
+  );
+  const unreadCount = useSelector(
+    (state: RootState) => state.RideData.unreadCounts[rideId || ""] ?? 0
+  );
+
+  const [userIsTyping, setUserIsTyping] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [directions, setDirections] =
     useState<google.maps.DirectionsResult | null>(null);
@@ -74,19 +95,71 @@ const DriverRideTracking: React.FC = () => {
   const [zoom, setZoom] = useState(9);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [messages, setMessages] = useState<
-    Array<{
-      text: string;
-      sender: "driver" | "user";
-      image?: string;
-      time: string;
-    }>
-  >([]);
   const [messageInput, setMessageInput] = useState("");
   const [pinInput, setPinInput] = useState(["", "", "", "", "", ""]);
   const [pinError, setPinError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pinInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    const handleIncomingMessage = (data: any) => {
+      console.log("Incoming message:", data);
+
+      const msg: ChatMessage = {
+        id: data.id,
+        text: data.text || "",
+        image: data.image,
+        sender: "user", 
+        time: data.time,
+        edited: data.edited,
+        deleted: data.deleted,
+      };
+      dispatch(addMessage({ rideId, message: msg }));
+    };
+
+    const handleTyping = (data: { isTyping: boolean }) => {
+      console.log("User typing:", data.isTyping);
+      setUserIsTyping(data.isTyping);
+    };
+
+    const handleEdit = (data: { messageId: string; newText: string }) => {
+      dispatch(
+        editMessage({
+          rideId,
+          messageId: data.messageId,
+          newText: data.newText,
+        })
+      );
+    };
+
+    const handleDelete = (data: { messageId: string }) => {
+      dispatch(deleteMessage({ rideId, messageId: data.messageId }));
+    };
+
+    const offHandleIncomingMessage = socketService.on(
+      "send:message",
+      handleIncomingMessage
+    );
+    const offHandleImage = socketService.on(
+      "send:image",
+      handleIncomingMessage
+    );
+    const offHandleTyping = socketService.on("chat:typing", handleTyping);
+    const offHandleEdit = socketService.on("chat:edit", handleEdit);
+    const offHandleDelete = socketService.on("chat:delete", handleDelete);
+
+    return () => {
+      offHandleIncomingMessage();
+      offHandleImage();
+      offHandleTyping();
+      offHandleEdit();
+      offHandleDelete();
+    };
+  }, [dispatch, rideId]);
 
   useEffect(() => {
     if (!status) {
@@ -194,36 +267,128 @@ const DriverRideTracking: React.FC = () => {
         return;
       }
 
-      // if (enteredPin !== rideDetails.pin.toString()) {
-      //   setPinError("Invalid PIN. Please try again.");
-      //   return;
-      // }
-
       const response = await postData(DriverApiEndpoints.CHECK_SECURITY_PIN, {
         enteredPin,
         _id: rideDetails.id,
       });
       if (response?.status == 200)
-        toast({ description: "ride started successfully", variant: "success" });
+        toast({ description: "Ride started successfully", variant: "success" });
     } catch (error) {
       handleCustomError(error);
     }
   };
 
+  const openChat = () => {
+    setIsChatOpen(true);
+    dispatch(markChatAsRead(rideId));
+  };
+
+  const handleTypingChange = (value: string) => {
+    setMessageInput(value);
+
+    if (!isTyping) {
+      setIsTyping(true);
+      dispatch(
+        emitSocket("chat:typing", {
+          receiver: rideDetails.user?.userId,
+          isTyping: true,
+        })
+      );
+    }
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+      dispatch(
+        emitSocket("chat:typing", {
+          receiver: rideDetails.user?.userId,
+          isTyping: false,
+        })
+      );
+    }, 1000);
+  };
+
   const handleSendMessage = () => {
-    if (messageInput.trim()) {
-      setMessages([
-        ...messages,
-        {
-          text: messageInput,
-          sender: "driver",
-          time: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        },
-      ]);
-      setMessageInput("");
+    if (!messageInput.trim()) return;
+
+    const messageId = uuidv4();
+    const message: ChatMessage = {
+      id: messageId,
+      text: messageInput,
+      sender: "driver", 
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    dispatch(addMessage({ rideId, message }));
+    dispatch(
+      emitSocket("send:message", {
+        ...message,
+        receiver: rideDetails.user?.userId,
+        rideId,
+      })
+    );
+
+    setMessageInput("");
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const messageId = uuidv4();
+      const message: ChatMessage = {
+        id: messageId,
+        text: "",
+        image: reader.result as string,
+        sender: "driver",
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      dispatch(addMessage({ rideId, message }));
+      dispatch(
+        emitSocket("send:image", {
+          ...message,
+          receiver: rideDetails.user?.userId,
+          rideId,
+        })
+      );
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEdit = (msg: ChatMessage) => {
+    const newText = prompt("Edit message:", msg.text);
+    if (newText && newText.trim() && newText !== msg.text) {
+      dispatch(
+        editMessage({ rideId, messageId: msg.id, newText: newText.trim() })
+      );
+      dispatch(
+        emitSocket("chat:edit", {
+          receiver: rideDetails.user?.userId,
+          messageId: msg.id,
+          newText: newText.trim(),
+        })
+      );
+    }
+  };
+
+  const handleDelete = (msg: ChatMessage) => {
+    if (confirm("Delete this message?")) {
+      dispatch(deleteMessage({ rideId, messageId: msg.id }));
+      dispatch(
+        emitSocket("chat:delete", {
+          receiver: rideDetails.user?.userId,
+          messageId: msg.id,
+        })
+      );
     }
   };
 
@@ -253,28 +418,6 @@ const DriverRideTracking: React.FC = () => {
       }
     } catch (error) {
       handleCustomError(error);
-    }
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMessages([
-          ...messages,
-          {
-            text: "",
-            sender: "driver",
-            image: reader.result as string,
-            time: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          },
-        ]);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -405,10 +548,8 @@ const DriverRideTracking: React.FC = () => {
         )}
       </GoogleMap>
 
-      {/* Compact Bottom Card */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
         <div className="bg-white backdrop-blur-lg rounded-2xl shadow-2xl border-2 border-yellow-500 overflow-hidden">
-          {/* Compact View - Always Visible */}
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2 flex-1">
@@ -438,8 +579,8 @@ const DriverRideTracking: React.FC = () => {
                   {rideDetails.duration}
                 </span>
               </div>
-              {status == "InRide" && (
-                <Button onClick={handleCompleteRide}>complete ride</Button>
+              {status === "InRide" && (
+                <Button onClick={handleCompleteRide}>Complete Ride</Button>
               )}
               <div className="flex items-center space-x-2">
                 <button
@@ -449,10 +590,15 @@ const DriverRideTracking: React.FC = () => {
                   <Phone className="text-white" size={18} />
                 </button>
                 <button
-                  onClick={() => setIsChatOpen(true)}
-                  className="bg-blue-500 hover:bg-blue-600 p-2 rounded-full transition-colors shadow-lg"
+                  onClick={openChat}
+                  className="relative bg-blue-500 hover:bg-blue-600 p-2 rounded-full transition-colors"
                 >
                   <MessageCircle className="text-white" size={18} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => setShowDetails(!showDetails)}
@@ -468,10 +614,8 @@ const DriverRideTracking: React.FC = () => {
             </div>
           </div>
 
-          {/* Expanded Details - Toggleable */}
           {showDetails && (
             <div className="border-t-2 border-yellow-200 bg-yellow-50 p-4 space-y-4">
-              {/* User Details */}
               <div className="flex items-center space-x-3">
                 <img
                   src={
@@ -491,7 +635,6 @@ const DriverRideTracking: React.FC = () => {
                 </div>
               </div>
 
-              {/* PIN Input - Only for Accepted Status */}
               {status === "Accepted" && (
                 <div className="bg-white rounded-xl p-4 border-2 border-yellow-500">
                   <p className="text-gray-700 text-sm text-center mb-3 font-semibold">
@@ -531,7 +674,6 @@ const DriverRideTracking: React.FC = () => {
         </div>
       </div>
 
-      {/* Chat Modal */}
       {isChatOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center sm:justify-center">
           <div className="bg-white w-full sm:max-w-md sm:rounded-2xl h-[80vh] sm:h-[600px] flex flex-col border-2 border-yellow-500 shadow-2xl">
@@ -549,7 +691,9 @@ const DriverRideTracking: React.FC = () => {
                   <h3 className="text-white font-bold">
                     {rideDetails.user?.userName}
                   </h3>
-                  <p className="text-white/80 text-xs">Online</p>
+                  <p className="text-white/80 text-xs">
+                    {userIsTyping ? "Typing..." : "Online"}
+                  </p>
                 </div>
               </div>
               <button
@@ -561,9 +705,9 @@ const DriverRideTracking: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-yellow-50">
-              {messages.map((msg, idx) => (
+              {messages.map((msg) => (
                 <div
-                  key={idx}
+                  key={msg.id}
                   className={`flex ${
                     msg.sender === "driver" ? "justify-end" : "justify-start"
                   }`}
@@ -571,30 +715,62 @@ const DriverRideTracking: React.FC = () => {
                   <div
                     className={`max-w-[70%] rounded-2xl p-3 ${
                       msg.sender === "driver"
-                        ? "bg-yellow-500 text-white"
-                        : "bg-white text-gray-900 border border-gray-200"
+                        ? "bg-yellow-500 text-black"
+                        : "bg-gray-800 text-white"
                     }`}
                   >
-                    {msg.image && (
-                      <img
-                        src={msg.image}
-                        alt="Sent"
-                        className="rounded-lg mb-2"
-                      />
+                    {msg.deleted ? (
+                      <p className="italic text-gray-500">
+                        This message was deleted
+                      </p>
+                    ) : (
+                      <>
+                        {msg.image && (
+                          <img
+                            src={msg.image}
+                            alt="Sent"
+                            className="rounded-lg mb-2 max-w-full"
+                          />
+                        )}
+                        {msg.text && <p className="text-sm">{msg.text}</p>}
+                        <p
+                          className={`text-xs mt-1 ${
+                            msg.sender === "driver"
+                              ? "text-black/70"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {msg.time} {msg.edited && "(edited)"}
+                        </p>
+                      </>
                     )}
-                    {msg.text && <p className="text-sm">{msg.text}</p>}
-                    <p
-                      className={`text-xs mt-1 ${
-                        msg.sender === "driver"
-                          ? "text-white/70"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      {msg.time}
-                    </p>
+
+                    {!msg.deleted && msg.sender === "driver" && (
+                      <div className="flex justify-end space-x-2 mt-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(msg);
+                          }}
+                          className="text-xs bg-black/20 hover:bg-black/30 px-2 py-1 rounded"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(msg);
+                          }}
+                          className="text-xs bg-red-500/30 hover:bg-red-500/50 px-2 py-1 rounded"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
+              <div ref={chatEndRef} />
             </div>
 
             <div className="bg-white p-4 border-t-2 border-yellow-500">
@@ -615,7 +791,7 @@ const DriverRideTracking: React.FC = () => {
                 <input
                   type="text"
                   value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
+                  onChange={(e) => handleTypingChange(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                   placeholder="Type a message..."
                   className="flex-1 bg-yellow-50 text-gray-900 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500 border border-yellow-300"

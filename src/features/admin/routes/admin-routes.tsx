@@ -23,7 +23,7 @@ import { store } from "@/shared/services/redux/store";
 import Issues from "../pages/admin/IssuePage";
 
 function AdminRoutes() {
-  
+    useAdminSocketEvents();
   const dispatch = useDispatch();
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -53,7 +53,6 @@ function AdminRoutes() {
     })();
   }, []);
   
-  useAdminSocketEvents();
   return (
     <Routes>
       <Route element={<ProtectedRoute allowedRole={"Admin"} />}>
