@@ -35,6 +35,8 @@ const useChat = (rideDetails: RideDetails, rideId: string) => {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const isLocalTypingRef = useRef(false);
 
+  const messageNotificationRef = useRef<HTMLAudioElement>(null);
+
   const receiverId = useMemo(() => {
     const roleNormalized = currentUserRole?.toLowerCase();
     if (roleNormalized === "user") {
@@ -46,6 +48,16 @@ const useChat = (rideDetails: RideDetails, rideId: string) => {
   }, [currentUserRole, rideDetails]);
 
   const senderRole = currentUserRole?.toLowerCase() as "user" | "driver";
+
+  const playMessageNotification = useCallback(() => {
+    if (messageNotificationRef.current) {
+      messageNotificationRef.current.src = '/message_tune.mp3'; 
+      messageNotificationRef.current.volume = 0.7; 
+      messageNotificationRef.current.play().catch((error) => {
+        console.warn('Could not play message notification:', error);
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (isChatOpen) {
@@ -69,6 +81,8 @@ const useChat = (rideDetails: RideDetails, rideId: string) => {
         deleted: data.deleted,
       };
       dispatch(addMessage({ rideId, message: msg }));
+
+      playMessageNotification();
     };
 
     const handleTyping = (data: { isTyping: boolean }) => {
@@ -94,7 +108,7 @@ const useChat = (rideDetails: RideDetails, rideId: string) => {
     return () => {
       listeners.forEach((unsubscribe) => unsubscribe && unsubscribe());
     };
-  }, [dispatch, rideId, senderRole]);
+  }, [dispatch, rideId, senderRole, playMessageNotification]);
 
   
   const openChat = useCallback(() => {
@@ -203,7 +217,8 @@ const useChat = (rideDetails: RideDetails, rideId: string) => {
     handleImageUpload,
     handleEditMessage,
     handleDeleteMessage,
-    chatEndRef 
+    chatEndRef,
+    messageNotificationRef 
   };
 };
 

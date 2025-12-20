@@ -1,132 +1,132 @@
-  import React, { useState, useEffect } from "react";
-  import { useNavigate } from "react-router-dom";
-  import { useSelector } from "react-redux";
-  import { GoogleMap, Marker, DirectionsRenderer, useJsApiLoader } from "@react-google-maps/api";
-  import { Loader } from "lucide-react";
-  import { RootState } from "@/shared/services/redux/store";
-  import { useAnimatedDriverMarker } from "@/shared/hooks/useAnimatedDriverMarker";
-  import { RideDetailsCard } from "../components/RideDetailsCard";
-  import { ChatModal } from "../components/ChatModal";
-  import { CallModals } from "../components/CallModals";
-  import { PinEntry } from "../components/PinEntry";
-  import useDirections from "@/shared/hooks/useDirections";
-  import { RideCompletionHandler } from "../components/RideCompletionHandler";
-  import useWebRTC from "@/shared/hooks/useWebRTC";
-  import useChat from "@/shared/hooks/useChat";
-  import { RideDetails } from "@/shared/types/common";
-  import { toast } from "@/shared/hooks/use-toast";
-  import { calculateDistance } from "@/shared/utils/getDistanceInMeters";
-  import { postData } from "@/shared/services/api/api-service";
-  import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
-  import { handleCustomError } from "@/shared/utils/error";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { GoogleMap, Marker, DirectionsRenderer, useJsApiLoader } from "@react-google-maps/api";
+import { Loader } from "lucide-react";
+import { RootState } from "@/shared/services/redux/store";
+import { useAnimatedDriverMarker } from "@/shared/hooks/useAnimatedDriverMarker";
+import { RideDetailsCard } from "../components/RideDetailsCard";
+import { ChatModal } from "../components/ChatModal";
+import { CallModals } from "../components/CallModals";
+import { PinEntry } from "../components/PinEntry";
+import useDirections from "@/shared/hooks/useDirections";
+import { RideCompletionHandler } from "../components/RideCompletionHandler";
+import useWebRTC from "@/shared/hooks/useWebRTC";
+import useChat from "@/shared/hooks/useChat";
+import { RideDetails } from "@/shared/types/common";
+import { toast } from "@/shared/hooks/use-toast";
+import { calculateDistance } from "@/shared/utils/getDistanceInMeters";
+import { postData } from "@/shared/services/api/api-service";
+import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
+import { handleCustomError } from "@/shared/utils/error";
 
-  const libraries: ("places" | "geometry")[] = ["places", "geometry"];
+const libraries: ("places" | "geometry")[] = ["places", "geometry"];
 
-  const mapContainerStyle = {
-    width: "100%",
-    height: "100%",
+const mapContainerStyle = {
+  width: "100%",
+  height: "100%",
+};
+
+const mapOptions = {
+  disableDefaultUI: true,
+  zoomControl: true,
+  styles: [
+    {
+      featureType: "poi",
+      elementType: "labels",
+      stylers: [{ visibility: "off" }],
+    },
+  ],
+};
+
+const DriverRideTracking: React.FC = () => {
+  const navigate = useNavigate();
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
+    libraries,
+  });
+  const rideDetails = useSelector(
+    (state: RootState) => state.RideData.rideDetails
+  );
+  const rideId = rideDetails.rideId;
+  const status = useSelector((state: RootState) => state.RideData.status);
+  const driverLocation = useSelector(
+    (state: RootState) => state.RideData.latest[rideId || ""]
+  );
+
+  const displayPos = useAnimatedDriverMarker(rideId);
+
+const usePinHandlers = (
+  pinInput: string[],
+  setPinInput: React.Dispatch<React.SetStateAction<string[]>>,
+  setPinError: React.Dispatch<React.SetStateAction<string>>,
+  driverLocation: any,
+  rideDetails: RideDetails
+) => {
+  const handlePinChange = (index: number, value: string) => {
+    if (value.length > 1) return;
+    if (value && !/^\d+$/.test(value)) return;
+
+    const newPin = [...pinInput];
+    newPin[index] = value;
+    setPinInput(newPin);
+    setPinError("");
+
+    if (value && index < 5) {
+      // Focus next input logic 
+    }
   };
 
-  const mapOptions = {
-    disableDefaultUI: true,
-    zoomControl: true,
-    styles: [
-      {
-        featureType: "poi",
-        elementType: "labels",
-        stylers: [{ visibility: "off" }],
-      },
-    ],
+  const handlePinKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !pinInput[index] && index > 0) {
+      // Focus previous
+    }
   };
 
-  const DriverRideTracking: React.FC = () => {
-    const navigate = useNavigate();
-    const { isLoaded } = useJsApiLoader({
-      googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
-      libraries,
-    });
-    const rideDetails = useSelector(
-      (state: RootState) => state.RideData.rideDetails
-    );
-    const rideId = rideDetails.rideId;
-    const status = useSelector((state: RootState) => state.RideData.status);
-    const driverLocation = useSelector(
-      (state: RootState) => state.RideData.latest[rideId || ""]
-    );
-
-    const displayPos = useAnimatedDriverMarker(rideId);
-
-  const usePinHandlers = (
-    pinInput: string[],
-    setPinInput: React.Dispatch<React.SetStateAction<string[]>>,
-    setPinError: React.Dispatch<React.SetStateAction<string>>,
-    driverLocation: any,
-    rideDetails: RideDetails
-  ) => {
-    const handlePinChange = (index: number, value: string) => {
-      if (value.length > 1) return;
-      if (value && !/^\d+$/.test(value)) return;
-
-      const newPin = [...pinInput];
-      newPin[index] = value;
-      setPinInput(newPin);
-      setPinError("");
-
-      if (value && index < 5) {
-        // Focus next input logic 
+  const handleSubmitPin = async () => {
+    try {
+      const enteredPin = pinInput.join("");
+      if (enteredPin.length !== 6) {
+        setPinError("Please enter all 6 digits");
+        return;
       }
-    };
-
-    const handlePinKeyDown = (index: number, e: React.KeyboardEvent) => {
-      if (e.key === "Backspace" && !pinInput[index] && index > 0) {
-        // Focus previous
-      }
-    };
-
-    const handleSubmitPin = async () => {
-      try {
-        const enteredPin = pinInput.join("");
-        if (enteredPin.length !== 6) {
-          setPinError("Please enter all 6 digits");
-          return;
-        }
-        if (!driverLocation?.lat || !driverLocation?.lng) {
-          toast({
-            description: "Driver location not available",
-            variant: "error",
-          });
-          return;
-        }
-
-        const driverDist = await calculateDistance(
-          driverLocation?.lat,
-          driverLocation?.lng,
-          rideDetails.pickupCoordinates.latitude,
-          rideDetails.pickupCoordinates.longitude
-        );
-
-        if (driverDist > 500) {
-          toast({
-            description:
-              "You're too far from the pickup. You need to be within 500 meters.",
-            variant: "error",
-          });
-          return;
-        }
-
-        const response = await postData(DriverApiEndpoints.CHECK_SECURITY_PIN, {
-          enteredPin,
-          _id: rideDetails.id,
+      if (!driverLocation?.lat || !driverLocation?.lng) {
+        toast({
+          description: "Driver location not available",
+          variant: "error",
         });
-        if (response?.status == 200)
-          toast({ description: "Ride started successfully", variant: "success" });
-      } catch (error) {
-        handleCustomError(error);
+        return;
       }
-    };
 
-    return { handlePinChange, handlePinKeyDown, handleSubmitPin };
+      const driverDist = await calculateDistance(
+        driverLocation?.lat,
+        driverLocation?.lng,
+        rideDetails.pickupCoordinates.latitude,
+        rideDetails.pickupCoordinates.longitude
+      );
+
+      if (driverDist > 500) {
+        toast({
+          description:
+            "You're too far from the pickup. You need to be within 500 meters.",
+          variant: "error",
+        });
+        return;
+      }
+
+      const response = await postData(DriverApiEndpoints.CHECK_SECURITY_PIN, {
+        enteredPin,
+        _id: rideDetails.id,
+      });
+      if (response?.status == 200)
+        toast({ description: "Ride started successfully", variant: "success" });
+    } catch (error) {
+      handleCustomError(error);
+    }
   };
+
+  return { handlePinChange, handlePinKeyDown, handleSubmitPin };
+};
 
     const {
       isCalling,
@@ -166,6 +166,26 @@
       driverLocation,
       rideDetails
     );
+
+    const callRingtoneRef = useRef<HTMLAudioElement>(null);
+
+    useEffect(() => {
+      if (incomingCall && callRingtoneRef.current) {
+        callRingtoneRef.current.src = '/uber_tune.mp3'; 
+        callRingtoneRef.current.loop = true;
+        callRingtoneRef.current.volume = 0.5; 
+        callRingtoneRef.current.play().catch((error) => {
+          console.warn('Could not play call ringtone:', error);
+        });
+      }
+    }, [incomingCall]);
+
+    useEffect(() => {
+      if (!incomingCall && callRingtoneRef.current) {
+        callRingtoneRef.current.pause();
+        callRingtoneRef.current.currentTime = 0;
+      }
+    }, [incomingCall, callActive]);
 
     useEffect(() => {
       if (!status) {
@@ -239,8 +259,12 @@
 
     return (
       <div className="relative h-screen w-full bg-yellow-50">
-        {/* Audio Element for Call */}
+        {/* Audio Element for Call (Remote Audio) */}
         <audio ref={remoteAudioRef} autoPlay playsInline />
+        <audio ref={chat.messageNotificationRef} autoPlay playsInline />
+
+        {/* Call Ringtone Audio (Hidden) */}
+        <audio ref={callRingtoneRef} />
 
         {/* Call Modals */}
         <CallModals

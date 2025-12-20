@@ -8,7 +8,7 @@ import { useDriverSocketEvents } from "@/shared/hooks/useDriverSocketEvents";
 import { LocationProvider } from "@/context/locationProvider";
 import DriverWallet from "../pages/WallerPage";
 import RideRequestModal from "../components/RideRequestModal";
-import DriverRideTracking from "../pages/rideTrackingPage";
+import DriverRideTracking from "../pages/RideTrackingPage";
 import { useDispatch } from "react-redux";
 import { store } from "@/shared/services/redux/store";
 import { fetchData } from "@/shared/services/api/api-service";
@@ -32,7 +32,6 @@ const DriverDocuments = lazy(() => import("../pages/DriverDocument"));
 const BookingTransaction = lazy(() => import("../pages/BookingTransaction"));
 const BookingDetails = lazy(() => import("../pages/BookingDetails"));
 const PaymentPage = lazy(() => import("../pages/paymentPage"));
-const DriverRideMap = lazy(() => import("../pages/DriverRideMap"));
 
 function DriverRoutes() {
   const loaderProps = {

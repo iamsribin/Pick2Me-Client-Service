@@ -10,7 +10,7 @@ import { Suspense, lazy, useEffect } from "react";
 
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
 import { useUserSocketEvents } from "@/shared/hooks/useUserSocketEvents";
-import UserRideTracking from "../pages/rideTrackingPage";
+import UserRideTracking from "../pages/RideTrackingPage";
 import { useDispatch } from "react-redux";
 import { fetchData } from "@/shared/services/api/api-service";
 import { CommonApiEndPoint } from "@/constants/common-api-ent-point";

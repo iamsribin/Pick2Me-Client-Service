@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { GoogleMap, Marker, DirectionsRenderer, useJsApiLoader } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  Marker,
+  DirectionsRenderer,
+  useJsApiLoader,
+} from "@react-google-maps/api";
 import { Loader } from "lucide-react";
 import { RootState } from "@/shared/services/redux/store";
 import { libraries } from "@/constants/map-options";
@@ -71,6 +76,29 @@ const UserRideTracking: React.FC = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [showCarImages, setShowCarImages] = useState(false);
 
+  // Ringtone audio ref for incoming calls
+  const callRingtoneRef = useRef<HTMLAudioElement>(null);
+
+  // Play ringtone on incoming call
+  useEffect(() => {
+    if (incomingCall && callRingtoneRef.current) {
+      callRingtoneRef.current.src = "/uber_tune.mp3";
+      callRingtoneRef.current.loop = true;
+      callRingtoneRef.current.volume = 0.5; // Adjust volume as needed
+      callRingtoneRef.current.play().catch((error) => {
+        console.warn("Could not play call ringtone:", error);
+      });
+    }
+  }, [incomingCall]);
+
+  // Stop ringtone when call is accepted, rejected, or ended
+  useEffect(() => {
+    if (!incomingCall && callRingtoneRef.current) {
+      callRingtoneRef.current.pause();
+      callRingtoneRef.current.currentTime = 0;
+    }
+  }, [incomingCall, callActive]);
+
   useEffect(() => {
     if (!status) {
       navigate("/");
@@ -98,13 +126,23 @@ const UserRideTracking: React.FC = () => {
   }
 
   if (status === "Completed") {
-    return <CompletedScreen rideDetails={rideDetails} onBookAnother={() => navigate("/")} />;
+    return (
+      <CompletedScreen
+        rideDetails={rideDetails}
+        onBookAnother={() => navigate("/")}
+      />
+    );
   }
 
   return (
     <div className="relative h-screen w-full bg-gray-900">
-      {/* Audio Element for Call */}
+      {/* Audio Element for Call (Remote Audio) */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
+
+      <audio ref={chat.messageNotificationRef} autoPlay playsInline />
+
+      {/* Call Ringtone Audio (Hidden) */}
+      <audio ref={callRingtoneRef} />
 
       {/* Call Modals */}
       <CallModals
@@ -208,7 +246,7 @@ const UserRideTracking: React.FC = () => {
         onImageUpload={chat.handleImageUpload}
         onEdit={chat.handleEditMessage}
         onDelete={chat.handleDeleteMessage}
-        chatEndRef={chat.chatEndRef} 
+        chatEndRef={chat.chatEndRef}
       />
     </div>
   );
