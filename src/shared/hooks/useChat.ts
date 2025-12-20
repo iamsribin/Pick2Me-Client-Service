@@ -1,186 +1,214 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useSocket } from "@/context/socket-context";
-import { Message } from "@/shared/types/common";
+// src/components/driver/hooks/useChat.ts
+import { useState, useRef, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { v4 as uuidv4 } from "uuid";
+import { RootState } from "@/shared/services/redux/store";
+import {
+  addMessage,
+  ChatMessage,
+  deleteMessage,
+  editMessage,
+  markChatAsRead,
+} from "@/shared/services/redux/slices/rideSlice";
+import { emitSocket } from "@/shared/utils/emitSocket";
+import socketService from "@/shared/services/socketService";
+import { RideDetails } from "../types/common";
 
-interface UseChatProps {
-  rideId: string;
-  currentUser: "driver" | "user";
-  recipientId: string;
-  onReceiveMessage: (message: Message) => void;
-  onUnreadCountChange?: (count: number) => void;
-  isActiveSection?: boolean;
-}
+const useChat = (rideDetails: RideDetails, rideId: string, status: string) => {
+  const dispatch = useDispatch();
+  const messages = useSelector(
+    (state: RootState) => state.RideData.chat[rideId || ""] ?? []
+  );
+  const unreadCount = useSelector(
+    (state: RootState) => state.RideData.unreadCounts[rideId || ""] ?? 0
+  );
 
-interface ChatState {
-  isTyping: boolean;
-  isRecipientTyping: boolean;
-  connectionStatus: "connected" | "disconnected" | "connecting";
-}
-
-export const useChat = ({
-  rideId,
-  currentUser,
-  recipientId,
-  onReceiveMessage,
-  onUnreadCountChange,
-  isActiveSection = true,
-}: UseChatProps) => {
-  const { socket, isConnected } = useSocket();
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [userIsTyping, setUserIsTyping] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [messageInput, setMessageInput] = useState("");
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [chatState, setChatState] = useState<ChatState>({
-    isTyping: false,
-    isRecipientTyping: false,
-    connectionStatus: "disconnected",
-  });
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Update connection status
   useEffect(() => {
-    setChatState(prev => ({
-      ...prev,
-      connectionStatus: isConnected ? "connected" : "disconnected",
-    }));
-  }, [isConnected]);
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  // Socket event listeners
+  // Socket listeners for chat
   useEffect(() => {
-    if (!socket || !isConnected) return;
-
-    const handleReceiveMessage = (data: {
-      sender: "driver" | "user";
-      message: string;
-      timestamp: string;
-      type: "text" | "image";
-      fileUrl?: string;
-    }) => {
-      const message: Message = {
-        sender: data.sender,
-        content: data.message,
-        timestamp: data.timestamp,
-        type: data.type,
-        fileUrl: data.fileUrl,
+    const handleIncomingMessage = (data: any) => {
+      const msg: ChatMessage = {
+        id: data.id,
+        text: data.text || "",
+        image: data.image,
+        sender: "user",
+        time: data.time,
+        edited: data.edited,
+        deleted: data.deleted,
       };
-      
-      onReceiveMessage(message);
-      
-      // Handle unread count
-      if (!isActiveSection && onUnreadCountChange && data.sender !== currentUser) {
-        onUnreadCountChange(1);
-      }
+      dispatch(addMessage({ rideId, message: msg }));
     };
 
-    const handleTypingIndicator = (data: { isTyping: boolean; rideId: string }) => {
-      if (data.rideId === rideId) {
-        setChatState(prev => ({
-          ...prev,
-          isRecipientTyping: data.isTyping,
-        }));
-      }
+    const handleTyping = (data: { isTyping: boolean }) => {
+      setUserIsTyping(data.isTyping);
     };
 
-    // Setup appropriate event listeners based on user type
-    socket.on("receiveMessage", handleReceiveMessage);
-    
-    if (currentUser === "driver") {
-      socket.on("userTyping", handleTypingIndicator);
-    } else {
-      socket.on("driverTyping", handleTypingIndicator);
-    }
+    const handleEdit = (data: { messageId: string; newText: string }) => {
+      dispatch(
+        editMessage({
+          rideId,
+          messageId: data.messageId,
+          newText: data.newText,
+        })
+      );
+    };
+
+    const handleDelete = (data: { messageId: string }) => {
+      dispatch(deleteMessage({ rideId, messageId: data.messageId }));
+    };
+
+    const offMessage = socketService.on("send:message", handleIncomingMessage);
+    const offImage = socketService.on("send:image", handleIncomingMessage);
+    const offTyping = socketService.on("chat:typing", handleTyping);
+    const offEdit = socketService.on("chat:edit", handleEdit);
+    const offDelete = socketService.on("chat:delete", handleDelete);
 
     return () => {
-      socket.off("receiveMessage", handleReceiveMessage);
-      socket.off(currentUser === "driver" ? "userTyping" : "driverTyping", handleTypingIndicator);
+      offMessage();
+      offImage();
+      offTyping();
+      offEdit();
+      offDelete();
     };
-  }, [socket, isConnected, rideId, currentUser, onReceiveMessage, isActiveSection, onUnreadCountChange]);
+  }, [dispatch, rideId]);
 
-  // Send typing indicator
-  const sendTypingIndicator = useCallback((isTyping: boolean) => {
-    if (!socket || !isConnected) return;
+  const openChat = () => {
+    setIsChatOpen(true);
+    dispatch(markChatAsRead(rideId));
+  };
 
-    const eventData = {
-      rideId,
-      sender: currentUser,
-      isTyping,
-      ...(currentUser === "driver" ? { userId: recipientId } : { driverId: recipientId }),
-    };
-
-    socket.emit("typing", eventData);
-  }, [socket, isConnected, rideId, currentUser, recipientId]);
-
-  // Handle typing with debounce
-  const handleTyping = useCallback(() => {
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
+  const handleTypingChange = (value: string) => {
+    setMessageInput(value);
+    if (!isTyping) {
+      setIsTyping(true);
+      dispatch(
+        emitSocket("chat:typing", {
+          receiver: rideDetails.user?.userId,
+          isTyping: true,
+        })
+      );
     }
 
-    // Send typing start
-    sendTypingIndicator(true);
-    setChatState(prev => ({ ...prev, isTyping: true }));
-
-    // Set timeout to stop typing indicator
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      sendTypingIndicator(false);
-      setChatState(prev => ({ ...prev, isTyping: false }));
-    }, 1500);
-  }, [sendTypingIndicator]);
+      setIsTyping(false);
+      dispatch(
+        emitSocket("chat:typing", {
+          receiver: rideDetails.user?.userId,
+          isTyping: false,
+        })
+      );
+    }, 1000);
+  };
 
-  // Send message
-  const sendMessage = useCallback((content: string, type: "text" | "image" = "text", fileUrl?: string) => {
-    if (!socket || !isConnected || (!content.trim() && type === "text")) return false;
+  const handleSendMessage = () => {
+    if (!messageInput.trim()) return;
 
-    // Clear typing timeout and indicator
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
+    const messageId = uuidv4();
+    const message: ChatMessage = {
+      id: messageId,
+      text: messageInput,
+      sender: "driver",
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    dispatch(addMessage({ rideId, message }));
+    dispatch(
+      emitSocket("send:message", {
+        ...message,
+        receiver: rideDetails.user?.userId,
+        rideId,
+      })
+    );
+
+    setMessageInput("");
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const messageId = uuidv4();
+      const message: ChatMessage = {
+        id: messageId,
+        text: "",
+        image: reader.result as string,
+        sender: "driver",
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      dispatch(addMessage({ rideId, message }));
+      dispatch(
+        emitSocket("send:image", {
+          ...message,
+          receiver: rideDetails.user?.userId,
+          rideId,
+        })
+      );
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditMessage = (msg: ChatMessage) => {
+    const newText = prompt("Edit message:", msg.text);
+    if (newText && newText.trim() && newText !== msg.text) {
+      dispatch(
+        editMessage({ rideId, messageId: msg.id, newText: newText.trim() })
+      );
+      dispatch(
+        emitSocket("chat:edit", {
+          receiver: rideDetails.user?.userId,
+          messageId: msg.id,
+          newText: newText.trim(),
+        })
+      );
     }
-    sendTypingIndicator(false);
-    setChatState(prev => ({ ...prev, isTyping: false }));
+  };
 
-    const timestamp = new Date().toISOString();
-    const message: Message = {
-      sender: currentUser,
-      content: content.trim(),
-      timestamp,
-      type,
-      fileUrl,
-    };
-
-    // Send via socket
-    const eventData = {
-      rideId,
-      sender: currentUser,
-      message: content.trim(),
-      timestamp,
-      type,
-      fileUrl,
-      ...(currentUser === "driver" ? { userId: recipientId } : { driverId: recipientId }),
-    };
-
-    socket.emit("sendMessage", eventData);
-    
-    // Call onReceiveMessage to update local state immediately
-    onReceiveMessage(message);
-    
-    return true;
-  }, [socket, isConnected, rideId, currentUser, recipientId, sendTypingIndicator, onReceiveMessage]);
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      // Send stop typing on unmount
-      if (socket && isConnected && chatState.isTyping) {
-        sendTypingIndicator(false);
-      }
-    };
-  }, [socket, isConnected, chatState.isTyping, sendTypingIndicator]);
+  const handleDeleteMessage = (msg: ChatMessage) => {
+    if (confirm("Delete this message?")) {
+      dispatch(deleteMessage({ rideId, messageId: msg.id }));
+      dispatch(
+        emitSocket("chat:delete", {
+          receiver: rideDetails.user?.userId,
+          messageId: msg.id,
+        })
+      );
+    }
+  };
 
   return {
-    sendMessage,
-    handleTyping,
-    isRecipientTyping: chatState.isRecipientTyping,
-    isConnected: chatState.connectionStatus === "connected",
-    connectionStatus: chatState.connectionStatus,
+    isChatOpen,
+    setIsChatOpen,
+    messages,
+    unreadCount,
+    messageInput,
+    userIsTyping,
+    openChat,
+    handleTypingChange,
+    handleSendMessage,
+    handleImageUpload,
+    handleEditMessage,
+    handleDeleteMessage,
   };
 };
+
+export default useChat;

@@ -8,7 +8,7 @@ import { useDriverSocketEvents } from "@/shared/hooks/useDriverSocketEvents";
 import { LocationProvider } from "@/context/locationProvider";
 import DriverWallet from "../pages/WallerPage";
 import RideRequestModal from "../components/RideRequestModal";
-import DriverRideTracking from "../components/rideTrackingPage";
+import DriverRideTracking from "../pages/rideTrackingPage";
 import { useDispatch } from "react-redux";
 import { store } from "@/shared/services/redux/store";
 import { fetchData } from "@/shared/services/api/api-service";
