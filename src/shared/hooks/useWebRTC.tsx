@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { emitSocket } from "@/shared/utils/emitSocket";
 import { toast } from "@/shared/hooks/use-toast";
 import { RideDetails } from "../types/common";
 import socketService from "../services/socketService";
+import { RootState } from "../services/redux/store";
 
 const peerConnectionConfig = {
   iceServers: [
@@ -18,17 +19,26 @@ const useWebRTC = (rideDetails: RideDetails, status: string) => {
   const [incomingCall, setIncomingCall] = useState<any>(null);
   const [callActive, setCallActive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-
   const peerConnection = useRef<RTCPeerConnection | null>(null);
   const localStream = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const currentUserRole = useSelector((state: RootState) => state.user.role);
+  const rideId = rideDetails.rideId;
+
+  const receiverId = useMemo(() => {
+    if (currentUserRole === "User") {
+      return rideDetails.driver?.driverId;
+    } else if (currentUserRole === "Driver") {
+      return rideDetails.user?.userId;
+    }
+    return null;
+  }, [currentUserRole, rideDetails]);
 
   useEffect(() => {
     const handleIncomingCall = async (data: { offer: any }) => {
       console.log("Incoming call received");
       setIncomingCall(data);
     };
-
     const handleCallAccepted = async (data: { answer: any }) => {
       if (peerConnection.current) {
         await peerConnection.current.setRemoteDescription(
@@ -38,7 +48,6 @@ const useWebRTC = (rideDetails: RideDetails, status: string) => {
         setCallActive(true);
       }
     };
-
     const handleIceCandidate = async (data: { candidate: any }) => {
       if (peerConnection.current && data.candidate) {
         try {
@@ -50,45 +59,43 @@ const useWebRTC = (rideDetails: RideDetails, status: string) => {
         }
       }
     };
-
     const handleCallEnded = () => {
       endCallCleanup();
       toast({ description: "Call ended", variant: "default" });
     };
-
     const offIncoming = socketService.on("call:incoming", handleIncomingCall);
     const offAccepted = socketService.on("call:accepted", handleCallAccepted);
     const offIce = socketService.on("call:ice-candidate", handleIceCandidate);
     const offEnded = socketService.on("call:ended", handleCallEnded);
-
     return () => {
       offIncoming();
       offAccepted();
       offIce();
       offEnded();
     };
-  }, [dispatch, rideDetails]);
+  }, [dispatch, rideId]);
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection(peerConnectionConfig);
-
-    pc.onicecandidate = (event:any) => {
+    pc.onicecandidate = (event: any) => {
       if (event.candidate) {
         dispatch(
           emitSocket("call:ice-candidate", {
-            receiver: rideDetails.user?.userId,
-            candidate: event.candidate,
+            receiver: receiverId,
+            candidate: event.candidate.toJSON(),
           })
         );
       }
     };
-
-    pc.ontrack = (event:any) => {
-      if (remoteAudioRef.current) {
+    pc.ontrack = (event: any) => {
+      console.log("🎵 Remote track received", event.streams);
+      if (remoteAudioRef.current && event.streams[0]) {
         remoteAudioRef.current.srcObject = event.streams[0];
+        remoteAudioRef.current.play().catch((error) => {
+          console.error("Error playing remote audio:", error);
+        });
       }
     };
-
     return pc;
   };
 
@@ -97,52 +104,46 @@ const useWebRTC = (rideDetails: RideDetails, status: string) => {
       setIsCalling(true);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStream.current = stream;
-
       const pc = createPeerConnection();
       peerConnection.current = pc;
-
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       dispatch(
         emitSocket("call:start", {
-          receiver: rideDetails.user?.userId,
+          receiver: receiverId,
           offer: offer,
         })
       );
     } catch (error) {
       console.error("Error starting call:", error);
       setIsCalling(false);
-      toast({ description: "Could not access microphone", variant: "error" });
+      toast({
+        description: "Could not access microphone",
+        variant: "destructive",
+      });
     }
   };
 
   const acceptCall = async () => {
     if (!incomingCall) return;
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStream.current = stream;
-
       const pc = createPeerConnection();
       peerConnection.current = pc;
-
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
       await pc.setRemoteDescription(
         new RTCSessionDescription(incomingCall.offer)
       );
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-
       dispatch(
         emitSocket("call:accept", {
-          receiver: rideDetails.user?.userId,
+          receiver: receiverId,
           answer: answer,
         })
       );
-
       setIncomingCall(null);
       setCallActive(true);
     } catch (error) {
@@ -153,7 +154,7 @@ const useWebRTC = (rideDetails: RideDetails, status: string) => {
   const rejectCall = () => {
     dispatch(
       emitSocket("call:end", {
-        receiver: rideDetails.user?.userId,
+        receiver: receiverId,
       })
     );
     setIncomingCall(null);
@@ -162,7 +163,7 @@ const useWebRTC = (rideDetails: RideDetails, status: string) => {
   const endCall = () => {
     dispatch(
       emitSocket("call:end", {
-        receiver: rideDetails.user?.userId,
+        receiver: receiverId,
       })
     );
     endCallCleanup();
@@ -177,6 +178,10 @@ const useWebRTC = (rideDetails: RideDetails, status: string) => {
       localStream.current.getTracks().forEach((track) => track.stop());
       localStream.current = null;
     }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+      remoteAudioRef.current.pause(); 
+    }
     setCallActive(false);
     setIsCalling(false);
     setIncomingCall(null);
@@ -185,7 +190,7 @@ const useWebRTC = (rideDetails: RideDetails, status: string) => {
 
   const toggleMute = () => {
     if (localStream.current) {
-      localStream.current.getAudioTracks()[0].enabled = !isMuted;
+      localStream.current.getAudioTracks()[0].enabled = isMuted;
       setIsMuted(!isMuted);
     }
   };
@@ -195,6 +200,7 @@ const useWebRTC = (rideDetails: RideDetails, status: string) => {
     incomingCall,
     callActive,
     isMuted,
+    remoteAudioRef, 
     handleCall: startCall,
     acceptCall,
     rejectCall,

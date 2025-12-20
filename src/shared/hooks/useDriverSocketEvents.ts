@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import SocketService from "@/shared/services/socketService";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -21,8 +21,6 @@ export function useDriverSocketEvents() {
     SocketService.connect();
 
     const offNotification = SocketService.on("notification", (data) => {
-      console.log("data of notificaito", data);
-
       dispatch(notificationReceived(data));
     });
 
@@ -31,15 +29,12 @@ export function useDriverSocketEvents() {
     });
 
     const offRideRequest = SocketService.on("ride:request", (payload) => {
-      console.log("ride:request", payload);
       dispatch(
         showRideRequest({ ride: payload, timeoutSec: payload.timeout ?? 30 })
       );
     });
 
     const offRide = SocketService.on("ride:accepted", (data) => {
-      console.log("ride:accepted", data);
-
       dispatch(notificationReceived(data.userNotification));
       dispatch(rideCreate(data.rideData));
       dispatch(
@@ -51,14 +46,12 @@ export function useDriverSocketEvents() {
     });
 
     const offRideStart = SocketService.on("ride:start", (data) => {
-      console.log("ride:start", data);
       dispatch(updateRideStatus({ status: data }));
     });
 
     const offLocationUpdate = SocketService.on(
       "driver:location:update",
       (data) => {
-        console.log("driver:location:update", data);
         dispatch(
           rideLocationReceived({
             ...data,

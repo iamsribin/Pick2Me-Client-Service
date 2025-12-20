@@ -25,24 +25,25 @@ export const CallModals: React.FC<CallModalsProps> = ({
   onToggleMute,
   onEndCall,
 }) => {
+  // Incoming Call Modal
   if (incomingCall && !callActive) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl p-6 w-80 shadow-2xl flex flex-col items-center space-y-4 animate-in fade-in zoom-in">
+        <div className="bg-black/90 rounded-2xl p-6 w-80 shadow-2xl flex flex-col items-center space-y-4 border border-yellow-500/30">
           <div className="relative">
-            <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-25"></div>
+            <div className="absolute inset-0 bg-yellow-500/30 rounded-full animate-ping"></div>
             <img
               src={
-                rideDetails.user?.userProfile || "/images/default-avatar.png"
+                rideDetails.driver?.driverProfile || "/images/default-avatar.png"
               }
-              className="w-20 h-20 rounded-full border-4 border-green-500 relative z-10"
+              className="w-20 h-20 rounded-full border-4 border-yellow-500 relative z-10"
             />
           </div>
           <div className="text-center">
-            <h3 className="font-bold text-lg">
-              {rideDetails.user?.userName}
+            <h3 className="font-bold text-lg text-white">
+              {rideDetails.driver?.driverName}
             </h3>
-            <p className="text-gray-500">Incoming Audio Call...</p>
+            <p className="text-gray-400">Incoming Audio Call...</p>
           </div>
           <div className="flex space-x-6">
             <button
@@ -63,6 +64,7 @@ export const CallModals: React.FC<CallModalsProps> = ({
     );
   }
 
+  // Outgoing / Active Call Modal
   if (isCalling || callActive) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md">
@@ -70,12 +72,12 @@ export const CallModals: React.FC<CallModalsProps> = ({
           <div className="flex flex-col items-center space-y-2">
             <img
               src={
-                rideDetails.user?.userProfile || "/images/default-avatar.png"
+                rideDetails.driver?.driverProfile || "/images/default-avatar.png"
               }
               className="w-24 h-24 rounded-full border-4 border-yellow-500 shadow-lg"
             />
             <h2 className="text-2xl font-bold">
-              {rideDetails.user?.userName}
+              {rideDetails.driver?.driverName}
             </h2>
             <p className="text-yellow-400 font-medium">
               {callActive ? "Connected" : "Calling..."}

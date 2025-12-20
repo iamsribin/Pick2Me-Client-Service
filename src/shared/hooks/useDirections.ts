@@ -14,7 +14,6 @@ const useDirections = (
   useEffect(() => {
     if (!isLoaded || !driverLocation) return;
 
-    // Set center
     if (status === "Accepted" || status === "InRide") {
       if (rideDetails.pickupCoordinates) {
         setCenter({
@@ -28,7 +27,6 @@ const useDirections = (
       setZoom(9);
     }
 
-    // Directions
     const origin =
       status === "Accepted" || status === "InRide"
         ? { lat: driverLocation.lat, lng: driverLocation.lng }

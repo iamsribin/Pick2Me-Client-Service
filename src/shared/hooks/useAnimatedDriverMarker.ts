@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/shared/services/redux/store';
-import { DriverLocationMessage } from '@/shared/types/common';
 
 function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
 
@@ -14,14 +13,11 @@ export function useAnimatedDriverMarker(rideId: string | undefined) {
 
   useEffect(() => {
     if (!positions || positions.length === 0) return;
-    // If no ongoing animation, start animating to latest point.
     const latest = positions[positions.length - 1];
     const prev = positions[positions.length - 2] ?? latest;
-    // Use timestamps to compute expected duration (serverTs or device ts)
     const t0 = prev.serverTs ?? prev.ts ?? Date.now() - 1000;
     const t1 = latest.serverTs ?? latest.ts ?? Date.now();
-    let duration = Math.max(100, Math.min(2000, t1 - t0)); // clamp to [100,2000] ms
-    // if t1 - t0 is 0 (same timestamp) fallback to 300ms
+    let duration = Math.max(100, Math.min(2000, t1 - t0)); 
     if (t1 - t0 <= 0) duration = 300;
 
     animRef.current = {
@@ -51,9 +47,7 @@ export function useAnimatedDriverMarker(rideId: string | undefined) {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(step);
 
-    // cleanup on unmount
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); rafRef.current = null; };
-  }, [positions]); // eslint-disable-line
-
+  }, [positions]);
   return displayPos;
 }
