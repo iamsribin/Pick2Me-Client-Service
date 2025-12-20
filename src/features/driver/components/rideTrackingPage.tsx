@@ -21,6 +21,10 @@ import {
   Clock,
   ChevronUp,
   ChevronDown,
+  PhoneOff,
+  Mic,
+  MicOff,
+  PhoneIncoming,
 } from "lucide-react";
 import { RootState } from "@/shared/services/redux/store";
 import { useAnimatedDriverMarker } from "@/shared/hooks/useAnimatedDriverMarker";
@@ -56,6 +60,13 @@ const mapOptions = {
       elementType: "labels",
       stylers: [{ visibility: "off" }],
     },
+  ],
+};
+
+const peerConnectionConfig = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:global.stun.twilio.com:3478" },
   ],
 };
 
@@ -101,19 +112,28 @@ const DriverRideTracking: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pinInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // --- WebRTC State & Refs ---
+  const [isCalling, setIsCalling] = useState(false); // Outgoing call status
+  const [incomingCall, setIncomingCall] = useState<any>(null); // Incoming call object
+  const [callActive, setCallActive] = useState(false); // Call connected
+  const [isMuted, setIsMuted] = useState(false);
+
+  const peerConnection = useRef<RTCPeerConnection | null>(null);
+  const localStream = useRef<MediaStream | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // --- Socket & WebRTC Listeners ---
   useEffect(() => {
     const handleIncomingMessage = (data: any) => {
-      console.log("Incoming message:", data);
-
       const msg: ChatMessage = {
         id: data.id,
         text: data.text || "",
         image: data.image,
-        sender: "user", 
+        sender: "user",
         time: data.time,
         edited: data.edited,
         deleted: data.deleted,
@@ -122,7 +142,6 @@ const DriverRideTracking: React.FC = () => {
     };
 
     const handleTyping = (data: { isTyping: boolean }) => {
-      console.log("User typing:", data.isTyping);
       setUserIsTyping(data.isTyping);
     };
 
@@ -140,7 +159,44 @@ const DriverRideTracking: React.FC = () => {
       dispatch(deleteMessage({ rideId, messageId: data.messageId }));
     };
 
-    const offHandleIncomingMessage = socketService.on(
+    // WebRTC: Handle Incoming Call
+    const handleIncomingCall = async (data: { offer: any }) => {
+      console.log("Incoming call received");
+      setIncomingCall(data);
+    };
+
+    // WebRTC: Handle Call Accepted (Remote answered our offer)
+    const handleCallAccepted = async (data: { answer: any }) => {
+      if (peerConnection.current) {
+        await peerConnection.current.setRemoteDescription(
+          new RTCSessionDescription(data.answer)
+        );
+        setIsCalling(false);
+        setCallActive(true);
+      }
+    };
+
+    // WebRTC: Handle ICE Candidates
+    const handleIceCandidate = async (data: { candidate: any }) => {
+      if (peerConnection.current && data.candidate) {
+        try {
+          await peerConnection.current.addIceCandidate(
+            new RTCIceCandidate(data.candidate)
+          );
+        } catch (e) {
+          console.error("Error adding received ice candidate", e);
+        }
+      }
+    };
+
+    // WebRTC: Handle Call Ended
+    const handleCallEnded = () => {
+      endCallCleanup();
+      toast({ description: "Call ended", variant: "default" });
+    };
+
+    // Socket Listeners
+ const offHandleIncomingMessage = socketService.on(
       "send:message",
       handleIncomingMessage
     );
@@ -151,6 +207,19 @@ const DriverRideTracking: React.FC = () => {
     const offHandleTyping = socketService.on("chat:typing", handleTyping);
     const offHandleEdit = socketService.on("chat:edit", handleEdit);
     const offHandleDelete = socketService.on("chat:delete", handleDelete);
+    const offHandleIncomingCall = socketService.on(
+      "call:incoming",
+      handleIncomingCall
+    );
+    const offHandleCallAccepted = socketService.on(
+      "call:accepted",
+      handleCallAccepted
+    );
+    const offHandleIceCandidate = socketService.on(
+      "call:ice-candidate",
+      handleIceCandidate
+    );
+    const offHandleCallEnded = socketService.on("call:ended", handleCallEnded);
 
     return () => {
       offHandleIncomingMessage();
@@ -158,6 +227,10 @@ const DriverRideTracking: React.FC = () => {
       offHandleTyping();
       offHandleEdit();
       offHandleDelete();
+      offHandleIncomingCall();
+      offHandleCallAccepted();
+      offHandleIceCandidate();
+      offHandleCallEnded();
     };
   }, [dispatch, rideId]);
 
@@ -178,9 +251,9 @@ const DriverRideTracking: React.FC = () => {
     }
   }, [rideDetails, status]);
 
+  // Directions Logic
   useEffect(() => {
     if (!isLoaded || !driverLocation) return;
-
     const origin =
       status === "Accepted" || status === "InRide"
         ? { lat: driverLocation.lat, lng: driverLocation.lng }
@@ -215,6 +288,131 @@ const DriverRideTracking: React.FC = () => {
       );
     }
   }, [driverLocation, status, rideDetails, isLoaded]);
+
+  // --- WebRTC Functions ---
+
+  const createPeerConnection = () => {
+    const pc = new RTCPeerConnection(peerConnectionConfig);
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        dispatch(
+          emitSocket("call:ice-candidate", {
+            receiver: rideDetails.user?.userId,
+            candidate: event.candidate,
+          })
+        );
+      }
+    };
+
+    pc.ontrack = (event) => {
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    return pc;
+  };
+
+  const startCall = async () => {
+    try {
+      setIsCalling(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStream.current = stream;
+
+      const pc = createPeerConnection();
+      peerConnection.current = pc;
+
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      dispatch(
+        emitSocket("call:start", {
+          receiver: rideDetails.user?.userId,
+          offer: offer,
+        })
+      );
+    } catch (error) {
+      console.error("Error starting call:", error);
+      setIsCalling(false);
+      toast({ description: "Could not access microphone", variant: "error" });
+    }
+  };
+
+  const acceptCall = async () => {
+    if (!incomingCall) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStream.current = stream;
+
+      const pc = createPeerConnection();
+      peerConnection.current = pc;
+
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      await pc.setRemoteDescription(
+        new RTCSessionDescription(incomingCall.offer)
+      );
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      dispatch(
+        emitSocket("call:accept", {
+          receiver: rideDetails.user?.userId, 
+          answer: answer,
+        })
+      );
+
+      setIncomingCall(null);
+      setCallActive(true);
+    } catch (error) {
+      console.error("Error accepting call:", error);
+    }
+  };
+
+  const rejectCall = () => {
+    dispatch(
+      emitSocket("call:end", {
+        receiver: rideDetails.user?.userId,
+      })
+    );
+
+    setIncomingCall(null);
+  };
+
+  const endCall = () => {
+    dispatch(
+      emitSocket("call:end", {
+        receiver: rideDetails.user?.userId,
+      })
+    );
+
+    endCallCleanup();
+  };
+
+  const endCallCleanup = () => {
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    if (localStream.current) {
+      localStream.current.getTracks().forEach((track) => track.stop());
+      localStream.current = null;
+    }
+    setCallActive(false);
+    setIsCalling(false);
+    setIncomingCall(null);
+    setIsMuted(false);
+  };
+
+  const toggleMute = () => {
+    if (localStream.current) {
+      localStream.current.getAudioTracks()[0].enabled = isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
 
   const handlePinChange = (index: number, value: string) => {
     if (value.length > 1) return;
@@ -285,7 +483,6 @@ const DriverRideTracking: React.FC = () => {
 
   const handleTypingChange = (value: string) => {
     setMessageInput(value);
-
     if (!isTyping) {
       setIsTyping(true);
       dispatch(
@@ -315,7 +512,7 @@ const DriverRideTracking: React.FC = () => {
     const message: ChatMessage = {
       id: messageId,
       text: messageInput,
-      sender: "driver", 
+      sender: "driver",
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -364,7 +561,7 @@ const DriverRideTracking: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleEdit = (msg: ChatMessage) => {
+  const handleEditMessage = (msg: ChatMessage) => {
     const newText = prompt("Edit message:", msg.text);
     if (newText && newText.trim() && newText !== msg.text) {
       dispatch(
@@ -380,7 +577,7 @@ const DriverRideTracking: React.FC = () => {
     }
   };
 
-  const handleDelete = (msg: ChatMessage) => {
+  const handleDeleteMessage = (msg: ChatMessage) => {
     if (confirm("Delete this message?")) {
       dispatch(deleteMessage({ rideId, messageId: msg.id }));
       dispatch(
@@ -422,9 +619,7 @@ const DriverRideTracking: React.FC = () => {
   };
 
   const handleCall = () => {
-    if (rideDetails.user?.userNumber) {
-      window.location.href = `tel:${rideDetails.user.userNumber}`;
-    }
+    startCall();
   };
 
   if (!isLoaded) {
@@ -483,6 +678,98 @@ const DriverRideTracking: React.FC = () => {
 
   return (
     <div className="relative h-screen w-full bg-yellow-50">
+      {/* --- AUDIO ELEMENT FOR CALL --- */}
+      <audio ref={remoteAudioRef} autoPlay />
+
+      {/* --- CALL MODALS --- */}
+
+      {/* 1. Incoming Call Modal */}
+      {incomingCall && !callActive && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 w-80 shadow-2xl flex flex-col items-center space-y-4 animate-in fade-in zoom-in">
+            <div className="relative">
+              <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-25"></div>
+              <img
+                src={
+                  rideDetails.user?.userProfile || "/images/default-avatar.png"
+                }
+                className="w-20 h-20 rounded-full border-4 border-green-500 relative z-10"
+              />
+            </div>
+            <div className="text-center">
+              <h3 className="font-bold text-lg">
+                {rideDetails.user?.userName}
+              </h3>
+              <p className="text-gray-500">Incoming Audio Call...</p>
+            </div>
+            <div className="flex space-x-6">
+              <button
+                onClick={rejectCall}
+                className="p-4 bg-red-500 rounded-full text-white hover:bg-red-600 transition"
+              >
+                <PhoneOff size={24} />
+              </button>
+              <button
+                onClick={acceptCall}
+                className="p-4 bg-green-500 rounded-full text-white hover:bg-green-600 transition animate-bounce"
+              >
+                <Phone size={24} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Outgoing / Active Call Modal */}
+      {(isCalling || callActive) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md">
+          <div className="flex flex-col items-center space-y-8 text-white">
+            <div className="flex flex-col items-center space-y-2">
+              <img
+                src={
+                  rideDetails.user?.userProfile || "/images/default-avatar.png"
+                }
+                className="w-24 h-24 rounded-full border-4 border-yellow-500 shadow-lg"
+              />
+              <h2 className="text-2xl font-bold">
+                {rideDetails.user?.userName}
+              </h2>
+              <p className="text-yellow-400 font-medium">
+                {callActive ? "Connected" : "Calling..."}
+              </p>
+              {callActive && (
+                <div className="text-sm opacity-70 flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  00:00
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-6">
+              {/* Mute Button */}
+              <button
+                onClick={toggleMute}
+                className={`p-4 rounded-full transition-all ${
+                  isMuted
+                    ? "bg-white text-black"
+                    : "bg-white/20 text-white hover:bg-white/30"
+                }`}
+              >
+                {isMuted ? <MicOff size={28} /> : <Mic size={28} />}
+              </button>
+
+              {/* End Call Button */}
+              <button
+                onClick={endCall}
+                className="p-6 bg-red-500 rounded-full text-white hover:bg-red-600 transition-all shadow-lg hover:scale-105"
+              >
+                <PhoneOff size={32} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <GoogleMap
         center={center}
         zoom={zoom}
@@ -548,6 +835,7 @@ const DriverRideTracking: React.FC = () => {
         )}
       </GoogleMap>
 
+      {/* --- Bottom Ride Details Card --- */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
         <div className="bg-white backdrop-blur-lg rounded-2xl shadow-2xl border-2 border-yellow-500 overflow-hidden">
           <div className="p-4">
@@ -583,6 +871,7 @@ const DriverRideTracking: React.FC = () => {
                 <Button onClick={handleCompleteRide}>Complete Ride</Button>
               )}
               <div className="flex items-center space-x-2">
+                {/* CALL BUTTON UPDATED */}
                 <button
                   onClick={handleCall}
                   className="bg-green-500 hover:bg-green-600 p-2 rounded-full transition-colors shadow-lg"
@@ -750,7 +1039,7 @@ const DriverRideTracking: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleEdit(msg);
+                            handleEditMessage(msg);
                           }}
                           className="text-xs bg-black/20 hover:bg-black/30 px-2 py-1 rounded"
                         >
@@ -759,7 +1048,7 @@ const DriverRideTracking: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDelete(msg);
+                            handleDeleteMessage(msg);
                           }}
                           className="text-xs bg-red-500/30 hover:bg-red-500/50 px-2 py-1 rounded"
                         >

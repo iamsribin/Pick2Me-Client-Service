@@ -22,6 +22,9 @@ import {
   Loader,
   ChevronUp,
   ChevronDown,
+  PhoneOff,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { RootState } from "@/shared/services/redux/store";
 import { libraries } from "@/constants/map-options";
@@ -53,6 +56,13 @@ const mapOptions = {
   ],
 };
 
+const peerConnectionConfig = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:global.stun.twilio.com:3478" },
+  ],
+};
+
 const UserRideTracking: React.FC = () => {
   const navigate = useNavigate();
   const { isLoaded } = useJsApiLoader({
@@ -69,7 +79,7 @@ const UserRideTracking: React.FC = () => {
   const [messageInput, setMessageInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  
+
   const rideDetails = useSelector(
     (state: RootState) => state.RideData.rideDetails
   );
@@ -95,19 +105,26 @@ const UserRideTracking: React.FC = () => {
     (state: RootState) => state.RideData.latest[rideId || ""]
   );
 
+  const [isCalling, setIsCalling] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<any>(null);
+  const [callActive, setCallActive] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+
+  const peerConnection = useRef<RTCPeerConnection | null>(null);
+  const localStream = useRef<MediaStream | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
     const handleIncomingMessage = (data: any) => {
-      console.log("Incoming message:", data);
-      
       const msg: ChatMessage = {
         id: data.id,
         text: data.text || "",
         image: data.image,
-        sender: "driver", 
+        sender: "driver",
         time: data.time,
         edited: data.edited,
         deleted: data.deleted,
@@ -116,7 +133,6 @@ const UserRideTracking: React.FC = () => {
     };
 
     const handleTyping = (data: { isTyping: boolean }) => {
-      console.log("Driver typing:", data.isTyping);
       setDriverIsTyping(data.isTyping);
     };
 
@@ -134,6 +150,37 @@ const UserRideTracking: React.FC = () => {
       dispatch(deleteMessage({ rideId, messageId: data.messageId }));
     };
 
+    const handleIncomingCall = async (data: { offer: any }) => {
+      console.log("Incoming call received");
+      setIncomingCall(data);
+    };
+
+    const handleCallAccepted = async (data: { answer: any }) => {
+      if (peerConnection.current) {
+        await peerConnection.current.setRemoteDescription(
+          new RTCSessionDescription(data.answer)
+        );
+        setIsCalling(false);
+        setCallActive(true);
+      }
+    };
+
+    const handleIceCandidate = async (data: { candidate: any }) => {
+      if (peerConnection.current && data.candidate) {
+        try {
+          await peerConnection.current.addIceCandidate(
+            new RTCIceCandidate(data.candidate)
+          );
+        } catch (e) {
+          console.error("Error adding received ice candidate", e);
+        }
+      }
+    };
+
+    const handleCallEnded = () => {
+      endCallCleanup();
+    };
+
     const offHandleIncomingMessage = socketService.on(
       "send:message",
       handleIncomingMessage
@@ -145,6 +192,19 @@ const UserRideTracking: React.FC = () => {
     const offHandleTyping = socketService.on("chat:typing", handleTyping);
     const offHandleEdit = socketService.on("chat:edit", handleEdit);
     const offHandleDelete = socketService.on("chat:delete", handleDelete);
+    const offHandleIncomingCall = socketService.on(
+      "call:incoming",
+      handleIncomingCall
+    );
+    const offHandleCallAccepted = socketService.on(
+      "call:accepted",
+      handleCallAccepted
+    );
+    const offHandleIceCandidate = socketService.on(
+      "call:ice-candidate",
+      handleIceCandidate
+    );
+    const offHandleCallEnded = socketService.on("call:ended", handleCallEnded);
 
     return () => {
       offHandleIncomingMessage();
@@ -152,6 +212,10 @@ const UserRideTracking: React.FC = () => {
       offHandleTyping();
       offHandleEdit();
       offHandleDelete();
+      offHandleIncomingCall();
+      offHandleCallAccepted();
+      offHandleIceCandidate();
+      offHandleCallEnded();
     };
   }, [dispatch, rideId]);
 
@@ -212,6 +276,129 @@ const UserRideTracking: React.FC = () => {
     }
   }, [driverLocation, status, rideDetails, isLoaded]);
 
+
+  const createPeerConnection = () => {
+    const pc = new RTCPeerConnection(peerConnectionConfig);
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        dispatch(
+          emitSocket("call:ice-candidate", {
+            receiver: rideDetails.driver?.driverId,
+            candidate: event.candidate,
+          })
+        );
+      }
+    };
+
+    pc.ontrack = (event) => {
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    return pc;
+  };
+
+  const startCall = async () => {
+    try {
+      setIsCalling(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStream.current = stream;
+
+      const pc = createPeerConnection();
+      peerConnection.current = pc;
+
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      dispatch(
+        emitSocket("call:start", {
+          receiver: rideDetails.driver?.driverId,
+          offer: offer,
+        })
+      );
+    } catch (error) {
+      console.error("Error starting call:", error);
+      setIsCalling(false);
+    }
+  };
+
+  const acceptCall = async () => {
+    if (!incomingCall) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStream.current = stream;
+
+      const pc = createPeerConnection();
+      peerConnection.current = pc;
+
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      await pc.setRemoteDescription(
+        new RTCSessionDescription(incomingCall.offer)
+      );
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      dispatch(
+        emitSocket("call:accept", {
+          receiver: rideDetails.driver?.driverId,
+          answer: answer,
+        })
+      );
+
+      setIncomingCall(null);
+      setCallActive(true);
+    } catch (error) {
+      console.error("Error accepting call:", error);
+    }
+  };
+
+  const rejectCall = () => {
+    dispatch(
+      emitSocket("call:end", {
+        receiver: rideDetails.driver?.driverId,
+      })
+    );
+
+    setIncomingCall(null);
+  };
+
+  const endCall = () => {
+    dispatch(
+      emitSocket("call:end", {
+        receiver: rideDetails.driver?.driverId,
+      })
+    );
+
+    endCallCleanup();
+  };
+
+  const endCallCleanup = () => {
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    if (localStream.current) {
+      localStream.current.getTracks().forEach((track) => track.stop());
+      localStream.current = null;
+    }
+    setCallActive(false);
+    setIsCalling(false);
+    setIncomingCall(null);
+    setIsMuted(false);
+  };
+
+  const toggleMute = () => {
+    if (localStream.current) {
+      localStream.current.getAudioTracks()[0].enabled = isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
   const openChat = () => {
     setIsChatOpen(true);
     dispatch(markChatAsRead(rideId));
@@ -249,7 +436,7 @@ const UserRideTracking: React.FC = () => {
     const message: ChatMessage = {
       id: messageId,
       text: messageInput,
-      sender: "user", // Message FROM user TO driver
+      sender: "user",
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -327,9 +514,7 @@ const UserRideTracking: React.FC = () => {
   };
 
   const handleCall = () => {
-    if (rideDetails.driver?.driverNumber) {
-      window.location.href = `tel:${rideDetails.driver.driverNumber}`;
-    }
+    startCall();
   };
 
   if (!isLoaded) {
@@ -437,6 +622,98 @@ const UserRideTracking: React.FC = () => {
 
   return (
     <div className="relative h-screen w-full bg-gray-900">
+      {/* --- AUDIO ELEMENT FOR CALL --- */}
+      <audio ref={remoteAudioRef} autoPlay />
+
+      {/* --- INCOMING CALL MODAL --- */}
+      {incomingCall && !callActive && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-black/90 rounded-2xl p-6 w-80 shadow-2xl flex flex-col items-center space-y-4 border border-yellow-500/30">
+            <div className="relative">
+              <div className="absolute inset-0 bg-yellow-500/30 rounded-full animate-ping"></div>
+              <img
+                src={
+                  rideDetails.driver?.driverProfile ||
+                  "/images/default-avatar.png"
+                }
+                className="w-20 h-20 rounded-full border-4 border-yellow-500 relative z-10"
+              />
+            </div>
+            <div className="text-center">
+              <h3 className="font-bold text-lg text-white">
+                {rideDetails.driver?.driverName}
+              </h3>
+              <p className="text-gray-400">Incoming Audio Call...</p>
+            </div>
+            <div className="flex space-x-6">
+              <button
+                onClick={rejectCall}
+                className="p-4 bg-red-500 rounded-full text-white hover:bg-red-600 transition"
+              >
+                <PhoneOff size={24} />
+              </button>
+              <button
+                onClick={acceptCall}
+                className="p-4 bg-green-500 rounded-full text-white hover:bg-green-600 transition animate-bounce"
+              >
+                <Phone size={24} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- ACTIVE CALL MODAL --- */}
+      {(isCalling || callActive) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md">
+          <div className="flex flex-col items-center space-y-8 text-white">
+            <div className="flex flex-col items-center space-y-2">
+              <img
+                src={
+                  rideDetails.driver?.driverProfile ||
+                  "/images/default-avatar.png"
+                }
+                className="w-24 h-24 rounded-full border-4 border-yellow-500 shadow-lg"
+              />
+              <h2 className="text-2xl font-bold">
+                {rideDetails.driver?.driverName}
+              </h2>
+              <p className="text-yellow-400 font-medium">
+                {callActive ? "Connected" : "Calling..."}
+              </p>
+              {callActive && (
+                <div className="text-sm opacity-70 flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  00:00
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-6">
+              {/* Mute Button */}
+              <button
+                onClick={toggleMute}
+                className={`p-4 rounded-full transition-all ${
+                  isMuted
+                    ? "bg-white text-black"
+                    : "bg-white/20 text-white hover:bg-white/30"
+                }`}
+              >
+                {isMuted ? <MicOff size={28} /> : <Mic size={28} />}
+              </button>
+
+              {/* End Call Button */}
+              <button
+                onClick={endCall}
+                className="p-6 bg-red-500 rounded-full text-white hover:bg-red-600 transition-all shadow-lg hover:scale-105"
+              >
+                <PhoneOff size={32} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <GoogleMap
         center={center}
         zoom={zoom}
