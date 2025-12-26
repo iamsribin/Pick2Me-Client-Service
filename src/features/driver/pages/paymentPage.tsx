@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { CheckCircle, Clock, CreditCard, Banknote, Wallet, User, MapPin, Car } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { updateRideStatus } from '@/shared/services/redux/slices/driverRideSlice';
 import { RootState } from '@/shared/services/redux/store';
 import { useNavigate } from 'react-router-dom';
 

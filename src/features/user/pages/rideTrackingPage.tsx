@@ -76,22 +76,19 @@ const UserRideTracking: React.FC = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [showCarImages, setShowCarImages] = useState(false);
 
-  // Ringtone audio ref for incoming calls
   const callRingtoneRef = useRef<HTMLAudioElement>(null);
 
-  // Play ringtone on incoming call
   useEffect(() => {
     if (incomingCall && callRingtoneRef.current) {
       callRingtoneRef.current.src = "/uber_tune.mp3";
       callRingtoneRef.current.loop = true;
-      callRingtoneRef.current.volume = 0.5; // Adjust volume as needed
+      callRingtoneRef.current.volume = 0.5; 
       callRingtoneRef.current.play().catch((error) => {
         console.warn("Could not play call ringtone:", error);
       });
     }
   }, [incomingCall]);
 
-  // Stop ringtone when call is accepted, rejected, or ended
   useEffect(() => {
     if (!incomingCall && callRingtoneRef.current) {
       callRingtoneRef.current.pause();

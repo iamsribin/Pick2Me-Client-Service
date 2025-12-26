@@ -6,7 +6,7 @@ import AppRoutes from "@/constants/app-routes";
 import GlobalLoading from "@/shared/components/loaders/GlobalLoading";
 import { useDriverSocketEvents } from "@/shared/hooks/useDriverSocketEvents";
 import { LocationProvider } from "@/context/locationProvider";
-import DriverWallet from "../pages/WallerPage";
+import DriverWallet from "../pages/WalletPage";
 import RideRequestModal from "../components/RideRequestModal";
 import DriverRideTracking from "../pages/RideTrackingPage";
 import { useDispatch } from "react-redux";

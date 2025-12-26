@@ -2,9 +2,13 @@ import { calculateDistance } from "@/shared/utils/getDistanceInMeters";
 import { toast } from "@/shared/hooks/use-toast";
 import { handleCustomError } from "@/shared/utils/error";
 import { RideDetails } from "@/shared/types/common";
+import { postData } from "@/shared/services/api/api-service";
+import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
+import { StatusCode } from "@/shared/types/enum";
+import { rideCreate, updateRideStatus } from "@/shared/services/redux/slices/rideSlice";
 
 export const RideCompletionHandler = {
-  useHandlers: (driverLocation: any, rideDetails: RideDetails) => {
+  useHandlers: (dispatch: any, driverLocation: any, rideDetails: RideDetails) => {
     const handleCompleteRide = async () => {
       try {
         if (!driverLocation?.lat || !driverLocation?.lng) {
@@ -29,7 +33,18 @@ export const RideCompletionHandler = {
           });
           return;
         }
-        // Proceed with completion API call if needed
+
+      const response = await postData(
+          DriverApiEndpoints.COMPLETE_RIDE.replace(":rideId", rideDetails.id)
+        );
+
+        if(response?.status === StatusCode.OK){
+          toast(
+            { description: "Ride completed successfully!", variant: "success"}
+          )
+          dispatch(updateRideStatus({ status: "Completed"}))
+        }
+
       } catch (error) {
         handleCustomError(error);
       }

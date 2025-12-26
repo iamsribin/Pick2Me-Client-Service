@@ -18,6 +18,7 @@ enum DriverApiEndpoints {
   PROFILE = "/drivers/me",
   PROFILE_IMAGE = `/drivers/me/profile-image`,
   UPLOAD_CHAT_FILE = "/drivers/me/upload-chat-file",
+  COMPLETE_RIDE = "/bookings/complete-ride/:rideId",
   // ride 
   ONLINE_STATUS = "/drivers/me/online-status",
   MY_TRIPS = `/drivers/me/trips`,

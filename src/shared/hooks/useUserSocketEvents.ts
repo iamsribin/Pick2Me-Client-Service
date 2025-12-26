@@ -15,7 +15,6 @@ export function useUserSocketEvents() {
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.user);
 
-
   useEffect(() => {
     if (user.role !== "User") return;
 
@@ -41,6 +40,11 @@ export function useUserSocketEvents() {
     const offRideStart = SocketService.on("ride:start", (data) => {
       console.log("ride:start", data);
       dispatch(updateRideStatus({ status: data }));
+    });
+
+    const offRideCompleted = SocketService.on("ride:completed", (data) => {
+      console.log("ride:completed", data);
+      dispatch(updateRideStatus({ status: "Completed" }));
     });
 
     const offClearRide = SocketService.on("ride:canceled", (data) => {
@@ -80,6 +84,8 @@ export function useUserSocketEvents() {
       offRide();
       offClearRide();
       offRideStart();
+      offRideCompleted();
+      
       // if (flushTimerRef.current) {
       //   window.clearTimeout(flushTimerRef.current);
       //   flushTimerRef.current = null;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { GoogleMap, Marker, DirectionsRenderer, useJsApiLoader } from "@react-google-maps/api";
 import { Loader } from "lucide-react";
 import { RootState } from "@/shared/services/redux/store";
@@ -41,6 +41,7 @@ const mapOptions = {
 
 const DriverRideTracking: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
     libraries,
@@ -163,6 +164,7 @@ const usePinHandlers = (
     );
 
     const { handleCompleteRide } = RideCompletionHandler.useHandlers(
+      dispatch,
       driverLocation,
       rideDetails
     );
