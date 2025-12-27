@@ -111,6 +111,8 @@ export interface UserInfo {
 export interface DriverInfo {
   driverId: string;
   driverName: string;
+  // rating: number;
+  // vehicleModel: string;
   driverNumber: string;
   driverProfile: string;
   carBackImageUrl:string;
@@ -127,13 +129,11 @@ export interface RideDetails {
   price: number;
   duration: string;
   distanceInfo: { distance: string; distanceInKm: number };
-
   status: ""| "Pending" | "Accepted" | "InRide" | "Completed" | "Cancelled";
   paymentStatus: "Pending" | "Failed" | "Completed" | "idle";
   paymentMode: "Cash" | "Wallet" | "Strip";
   rideId: string;
   date: Date;
-
 }
 
 // export interface PaymentStatus {

@@ -1,52 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { CheckCircle, Clock, CreditCard, Banknote, Wallet, User, MapPin, Car } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { RootState } from '@/shared/services/redux/store';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  CheckCircle,
+  Clock,
+  CreditCard,
+  Banknote,
+  Wallet,
+  User,
+  MapPin,
+  Car,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { RootState } from "@/shared/services/redux/store";
+import { useNavigate } from "react-router-dom";
 
-// Types
 interface PaymentState {
-  method: 'cash' | 'wallet' | 'online';
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  method: "Cash" | "Wallet" | "Strip";
+  status: "Pending" | "Failed" | "Completed" | "idle";
   amount: number;
   transactionId?: string;
 }
 
-
 const DriverPaymentPage: React.FC = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  const { isOpen, rideData } = useSelector((state: RootState) => state.driverRideMap);
+  const currentRideData = useSelector(
+    (state: RootState) => state.RideData.rideDetails
+  );
 
-  const currentRideData = rideData 
-  
+
   const [paymentState, setPaymentState] = useState<PaymentState>({
-    method: 'cash',
-    status: 'pending',
-    amount: currentRideData?.bookingDetails.fareAmount || 0,
+    method: currentRideData.paymentMode,
+    status: currentRideData.paymentStatus,
+    amount: currentRideData.price,
   });
 
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
-  useEffect(() => {
-    if (!rideData) {
-      navigate("/driver/dashboard");
-    }
-  }, [rideData, navigate]);
+  const handleCashReceived = () => {};
 
   useEffect(() => {
-      const timer = setInterval(() => {
-        setTimeElapsed(prev => prev + 1);
-      }, 1000);
-      return () => clearInterval(timer);
+    if (!currentRideData) {
+      navigate("/driver/dashboard");
+    }
+  }, [currentRideData, navigate]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeElapsed((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
   }, [paymentState.status]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   if (!currentRideData) {
@@ -85,7 +95,7 @@ const DriverPaymentPage: React.FC = () => {
 
       <div className="container mx-auto px-4 py-6 max-w-md">
         {/* Header */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
@@ -93,23 +103,21 @@ const DriverPaymentPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
             Payment Processing
           </h1>
-          <p className="text-gray-600">
-            Waiting for customer payment
-          </p>
+          <p className="text-gray-600">Waiting for customer payment</p>
         </motion.div>
 
         {/* Customer Info Card */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className="bg-white rounded-xl shadow-lg p-6 mb-6"
         >
           <div className="flex items-center mb-4">
             <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-4">
-              {currentRideData.customer.userProfile ? (
-                <img 
-                  src={currentRideData.customer.userProfile} 
-                  alt="Customer" 
+              {currentRideData.user.userProfile ? (
+                <img
+                  src={currentRideData.user.userProfile}
+                  alt="Customer"
                   className="w-12 h-12 rounded-full object-cover"
                 />
               ) : (
@@ -118,10 +126,10 @@ const DriverPaymentPage: React.FC = () => {
             </div>
             <div>
               <h3 className="font-semibold text-gray-800">
-                {currentRideData.customer.userName}
+                {currentRideData.user.userName}
               </h3>
               <p className="text-sm text-gray-600">
-                {currentRideData.customer.userNumber}
+                {currentRideData.user.userNumber}
               </p>
             </div>
           </div>
@@ -132,21 +140,25 @@ const DriverPaymentPage: React.FC = () => {
               <MapPin className="w-4 h-4 text-green-600 mr-2 mt-1" />
               <div>
                 <p className="text-gray-500">Pickup</p>
-                <p className="text-gray-800">{currentRideData.bookingDetails.pickupLocation.address}</p>
+                <p className="text-gray-800">
+                  {currentRideData.pickupCoordinates.address}
+                </p>
               </div>
             </div>
             <div className="flex items-start">
               <MapPin className="w-4 h-4 text-red-600 mr-2 mt-1" />
               <div>
                 <p className="text-gray-500">Dropoff</p>
-                <p className="text-gray-800">{currentRideData.bookingDetails.dropoffLocation.address}</p>
+                <p className="text-gray-800">
+                  {currentRideData.dropOffCoordinates.address}
+                </p>
               </div>
             </div>
           </div>
         </motion.div>
 
         {/* Payment Status Card */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
@@ -154,22 +166,27 @@ const DriverPaymentPage: React.FC = () => {
         >
           <div className="text-center mb-6">
             <div className="mx-auto w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-             <Banknote className="w-8 h-8 text-green-600" />
+              <Banknote className="w-8 h-8 text-green-600" />
             </div>
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
               ₹{paymentState.amount}
             </h3>
-            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-blue-600 bg-blue-50`}>
+            <div
+              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-blue-600 bg-blue-50`}
+            >
               {/* {paymentState.status === 'pending' && <Clock className="w-4 h-4 mr-1" />} */}
               {/* {paymentState.status === 'processing' && ( */}
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-4 h-4 mr-1 border-2 border-current border-t-transparent rounded-full"
-                />
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-4 h-4 mr-1 border-2 border-current border-t-transparent rounded-full"
+              />
               {/* // )} */}
-              {paymentState.status === 'completed' && <CheckCircle className="w-4 h-4 mr-1" />}
-              {paymentState.status.charAt(0).toUpperCase() + paymentState.status.slice(1)}
+              {/* {paymentState.status === "Completed" && (
+                <CheckCircle className="w-4 h-4 mr-1" />
+              )} */}
+              {/* {paymentState.status.charAt(0).toUpperCase() +
+                paymentState.status.slice(1)} */}
             </div>
           </div>
 
@@ -190,7 +207,8 @@ const DriverPaymentPage: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          {/* {paymentState.method === 'cash' && paymentState.status === 'pending' && (
+          {paymentState.method === "Cash" &&
+          paymentState.status === "Pending" ? (
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -200,9 +218,7 @@ const DriverPaymentPage: React.FC = () => {
               <Banknote className="w-5 h-5 mr-2" />
               Confirm Cash Received
             </motion.button>
-          )} */}
-
-          {/* {(paymentState.method === 'wallet' || paymentState.method === 'online') && ( */}
+          ) : (
             <div className="text-center">
               <motion.div
                 animate={{ opacity: [0.5, 1, 0.5] }}
@@ -213,11 +229,11 @@ const DriverPaymentPage: React.FC = () => {
                 Waiting for customer to complete payment...
               </motion.div>
             </div>
-          {/* // )} */}
+          )}
         </motion.div>
 
         {/* Quick Actions */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}

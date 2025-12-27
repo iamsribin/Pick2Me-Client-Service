@@ -18,6 +18,7 @@ import { CompletedScreen } from "../components/ride/CompletedScreen";
 import { UserRideDetailsCard } from "../components/ride/UserRideDetailsCard";
 import { ChatModal } from "../components/ride/ChatModal";
 import { CallModals } from "../components/ride/CallModals";
+import PaymentPage from "../components/ride/PaymentPage";
 
 const mapContainerStyle = {
   width: "100%",
@@ -124,10 +125,7 @@ const UserRideTracking: React.FC = () => {
 
   if (status === "Completed") {
     return (
-      <CompletedScreen
-        rideDetails={rideDetails}
-        onBookAnother={() => navigate("/")}
-      />
+<PaymentPage/>
     );
   }
 

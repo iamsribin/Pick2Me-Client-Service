@@ -25,14 +25,14 @@ export const RideCompletionHandler = {
           rideDetails.dropOffCoordinates.longitude
         );
 
-        if (driverDist > 500) {
-          toast({
-            description:
-              "You're too far from the drop location. You need to be within 500 meters.",
-            variant: "error",
-          });
-          return;
-        }
+        // if (driverDist > 500) {
+        //   toast({
+        //     description:
+        //       "You're too far from the drop location. You need to be within 500 meters.",
+        //     variant: "error",
+        //   });
+        //   return;
+        // }
 
       const response = await postData(
           DriverApiEndpoints.COMPLETE_RIDE.replace(":rideId", rideDetails.id)
