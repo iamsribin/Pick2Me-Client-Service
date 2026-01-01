@@ -1,13 +1,11 @@
 import ReactDOM from "react-dom/client";
 import App from "./App";
-// import Test from "./test";
 import { Provider } from "react-redux";
 import { ThemeProvider } from "@material-tailwind/react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { BrowserRouter as Router } from "react-router-dom";
 import { persistor, store } from "./shared/services/redux/store";
 import { PersistGate } from "redux-persist/integration/react";
-// import { SocketProvider } from "@/context/socket-context";
 import ErrorBoundary from "@/shared/components/ErrorBoundaries";
 import "./index.css";
 import { Toaster } from "@/shared/components/ui/toaster"
@@ -22,10 +20,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
             <PersistGate persistor={persistor}>
               <Router> 
-                {/* <SocketProvider> */}
                  <Toaster />
                   <App />
-                {/* </SocketProvider> */}
               </Router>
             </PersistGate>
           </GoogleOAuthProvider>

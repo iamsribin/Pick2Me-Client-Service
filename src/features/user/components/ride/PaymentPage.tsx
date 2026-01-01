@@ -23,6 +23,8 @@ import { loadStripe } from "@stripe/stripe-js";
 import { postData } from "@/shared/services/api/api-service";
 import { ResponseCom } from "@/shared/types/common";
 import { toast } from "@/shared/hooks/use-toast";
+import { CompletedScreen } from "./CompletedScreen";
+import { handleCustomError } from "@/shared/utils/error";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -91,15 +93,16 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 const PaymentPage: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [stage, setStage] = useState<"Payment" | "Completed">("Payment");
 
-  const  paymentStatus = useSelector(
+  const paymentStatus = useSelector(
     (state: RootState) => state.RideData.rideDetails.paymentStatus
   );
 
-    const  rideData = useSelector(
+  const rideData = useSelector(
     (state: RootState) => state.RideData.rideDetails
   );
-  const  user  = useSelector((state: RootState) => state.user);
+  const user = useSelector((state: RootState) => state.user);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -158,32 +161,35 @@ const PaymentPage: React.FC = () => {
 
     try {
       if (selectedPaymentMethod === "cash") {
-
         //  const response =  await postData("/payments/cash-payment", "User", data);
       } else if (selectedPaymentMethod === "wallet") {
-        const response = await postData("/payments/wallet", data);
+        const response = await postData("/payments/wallet/payment", data);
+        setStage("Completed");
       } else if (selectedPaymentMethod === "stripe") {
         const response = await postData<ResponseCom["data"]>(
           "/payments/create-checkout-session",
           data
         );
-        
-  if (response?.data?.sessionId) {
-  const stripe = await stripePromise;
-  await stripe?.redirectToCheckout({ sessionId: response?.data?.sessionId });
-} else {
-  console.error("Stripe sessionId not received");
-}
+
+        if (response?.data?.sessionId) {
+          const stripe = await stripePromise;
+          await stripe?.redirectToCheckout({
+            sessionId: response?.data?.sessionId,
+          });
+        } else {
+          console.error("Stripe sessionId not received");
+        }
       }
     } catch (error) {
       console.log(error);
-      
+      handleCustomError(error);
       // dispatch(setPaymentStatus('failed'));
-      toast({
-        title: "Payment Failed",
-        description: (error as any).message,
-        variant: "destructive",
-      });
+      // toast({
+      //   title: "Payment Failed",
+      //   description: (error as any).message,
+      //   variant: "destructive",
+      // });
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -228,11 +234,19 @@ const PaymentPage: React.FC = () => {
     );
   }
 
+  if (stage === "Completed") {
+    return (
+      <CompletedScreen
+        onBookAnother={() => navigate("/")}
+        rideDetails={rideData}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-4 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto">
         <div className="flex items-center justify-between mb-6">
-
           <div className="flex items-center gap-2">
             {getStatusIcon()}
             <span className="text-sm font-medium">{getStatusMessage()}</span>
@@ -243,9 +257,7 @@ const PaymentPage: React.FC = () => {
           <div className="flex items-center gap-3 mb-4">
             <Avatar className="w-12 h-12">
               <img
-                src={
-                  rideData.driver?.driverProfile || "/api/placeholder/48/48"
-                }
+                src={rideData.driver?.driverProfile || "/api/placeholder/48/48"}
                 alt={rideData.driver?.driverName}
                 className="w-full h-full object-cover rounded-full"
               />
@@ -293,7 +305,9 @@ const PaymentPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Route className="w-4 h-4 text-gray-400" />
               <span className="text-gray-600">Distance:</span>
-              <span className="font-medium">{rideData.distanceInfo.distance}</span>
+              <span className="font-medium">
+                {rideData.distanceInfo.distance}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-gray-400" />
@@ -392,7 +406,8 @@ const PaymentPage: React.FC = () => {
           disabled={
             !selectedPaymentMethod ||
             isProcessing ||
-            paymentStatus === "Completed"          }
+            paymentStatus === "Completed"
+          }
           className="w-full h-12 text-lg font-semibold"
           size="lg"
         >
