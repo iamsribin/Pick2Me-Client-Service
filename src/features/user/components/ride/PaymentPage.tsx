@@ -15,7 +15,6 @@ import {
   Star,
   CheckCircle,
   AlertCircle,
-  ArrowLeft,
   Wallet,
 } from "lucide-react";
 import { RootState } from "@/shared/services/redux/store";
@@ -25,6 +24,8 @@ import { ResponseCom } from "@/shared/types/common";
 import { toast } from "@/shared/hooks/use-toast";
 import { CompletedScreen } from "./CompletedScreen";
 import { handleCustomError } from "@/shared/utils/error";
+import { emitSocket } from "@/shared/utils/emitSocket";
+import socketService from "@/shared/services/socketService";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -102,7 +103,6 @@ const PaymentPage: React.FC = () => {
   const rideData = useSelector(
     (state: RootState) => state.RideData.rideDetails
   );
-  const user = useSelector((state: RootState) => state.user);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -111,6 +111,7 @@ const PaymentPage: React.FC = () => {
       navigate("/");
     }
   }, [rideData, navigate]);
+  
 
   const paymentMethods = [
     {
@@ -161,7 +162,7 @@ const PaymentPage: React.FC = () => {
 
     try {
       if (selectedPaymentMethod === "cash") {
-        //  const response =  await postData("/payments/cash-payment", "User", data);
+         dispatch(emitSocket("user:cash-payment:conformation",data))
       } else if (selectedPaymentMethod === "wallet") {
         const response = await postData("/payments/wallet/payment", data);
         setStage("Completed");
@@ -170,7 +171,7 @@ const PaymentPage: React.FC = () => {
           "/payments/create-checkout-session",
           data
         );
-
+        console.log('response',response)
         if (response?.data?.sessionId) {
           const stripe = await stripePromise;
           await stripe?.redirectToCheckout({
@@ -274,7 +275,7 @@ const PaymentPage: React.FC = () => {
               </div>
             </div>
             <Badge variant="outline" className="text-xs">
-              {/* {rideData.driver?.vehicleModel} */} vafi
+              {/* {rideData.driver?.vehicleModel} */} jkjkjkj
             </Badge>
           </div>
 

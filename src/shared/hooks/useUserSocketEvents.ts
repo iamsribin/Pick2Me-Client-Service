@@ -42,6 +42,17 @@ export function useUserSocketEvents() {
       dispatch(updateRideStatus({ status: data }));
     });
 
+    SocketService.on("driver:cash-payment:not-received", (data) => {
+      console.log("driver:not-received", data.userId);
+      toast({ description: "driver didn't received your amount try again", variant: "error" })
+    });
+
+    SocketService.on("payment:completed", (data) => {
+      console.log("payment:completed", data);
+      dispatch(clearRide());
+      toast({ description: "payment completed", variant: "success" });
+    });
+
     const offRideCompleted = SocketService.on("ride:completed", (data) => {
       console.log("ride:completed", data);
       dispatch(updateRideStatus({ status: "Completed" }));
@@ -85,7 +96,7 @@ export function useUserSocketEvents() {
       offClearRide();
       offRideStart();
       offRideCompleted();
-      
+
       // if (flushTimerRef.current) {
       //   window.clearTimeout(flushTimerRef.current);
       //   flushTimerRef.current = null;

@@ -4,6 +4,7 @@ enum AppRoutes {
     SIGNUP = 'signup',
     USER_HOME = '',
     DASHBOARD = 'dashboard',
+    ACTIVITY = 'activity',
     PROFILE = 'profile',
     PAYMENT = "payment",
     

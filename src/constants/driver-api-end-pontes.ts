@@ -16,10 +16,12 @@ enum DriverApiEndpoints {
   MY_DOCUMENTS = "/drivers/me/documents",
   // driver 
   PROFILE = "/drivers/me",
+  ACTIVITY = "/drivers/me/stats",
   PROFILE_IMAGE = `/drivers/me/profile-image`,
   UPLOAD_CHAT_FILE = "/drivers/me/upload-chat-file",
   COMPLETE_RIDE = "/bookings/complete-ride/:rideId",
   // ride 
+  CASH_IN_HAND_PAYMENT = "/payments/cash-in-hand/payment",
   ONLINE_STATUS = "/drivers/me/online-status",
   MY_TRIPS = `/drivers/me/trips`,
   CHECK_SECURITY_PIN = "/bookings/check-security-pin",

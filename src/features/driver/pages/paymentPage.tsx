@@ -9,10 +9,18 @@ import {
   User,
   MapPin,
   Car,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RootState } from "@/shared/services/redux/store";
 import { useNavigate } from "react-router-dom";
+import socketService from "@/shared/services/socketService";
+import { postData } from "@/shared/services/api/api-service";
+import { emitSocket } from "@/shared/utils/emitSocket";
+import DriverApiEndpoints from "@/constants/driver-api-end-pontes";
+import { handleCustomError } from "@/shared/utils/error";
+import { toast } from "@/shared/hooks/use-toast";
+import { clearRide } from "@/shared/services/redux/slices/rideSlice";
 
 interface PaymentState {
   method: "Cash" | "Wallet" | "Strip";
@@ -23,11 +31,11 @@ interface PaymentState {
 
 const DriverPaymentPage: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const currentRideData = useSelector(
     (state: RootState) => state.RideData.rideDetails
   );
-
 
   const [paymentState, setPaymentState] = useState<PaymentState>({
     method: currentRideData.paymentMode,
@@ -37,6 +45,46 @@ const DriverPaymentPage: React.FC = () => {
 
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [socketData, setSocketData] = useState(null);
+
+  useEffect(() => {
+    socketService.on("user:cash-payment:conformation", (data) => {
+      console.log("user:cash-payment:conformation", data);
+      setSocketData(data);
+      setShowConfirmModal(true);
+    });
+
+    return () => {
+      // socketService.off("user:cash-payment:conformation");
+    };
+  }, []);
+
+  const handleConfirmYes = async () => {
+    setShowConfirmModal(false);
+    setIsUpdatingPayment(true);
+    
+    try {
+      
+      const response = await postData(DriverApiEndpoints.CASH_IN_HAND_PAYMENT, socketData);
+      console.log("Payment confirmed:", response);
+      dispatch(clearRide());
+      toast({description: "Payment completed successfully", variant: "success"})
+      setIsUpdatingPayment(false);
+    } catch (error) {
+      console.error("Payment confirmation failed:", error);
+      setIsUpdatingPayment(false);
+      handleCustomError(error);
+    }
+  };
+
+  const handleConfirmNo = () => {
+    setShowConfirmModal(false);
+    console.log("socketData",socketData);
+    // socketData.userId = "370d31f7-a9a4-4ec6-84c1-84a6e8475093"
+    dispatch(emitSocket("driver:cash-payment:not-received", socketData));
+  };
 
   const handleCashReceived = () => {};
 
@@ -71,6 +119,59 @@ const DriverPaymentPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {showConfirmModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <Banknote className="w-6 h-6 text-green-600" />
+                </div>
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                Payment Confirmation
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Did you receive the amount in hand from the user?
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleConfirmNo}
+                  className="flex-1 py-3 px-4 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  No
+                </button>
+                <button
+                  onClick={handleConfirmYes}
+                  className="flex-1 py-3 px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Yes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Success Animation Overlay */}
       <AnimatePresence>
         {showSuccessAnimation && (
@@ -174,30 +275,16 @@ const DriverPaymentPage: React.FC = () => {
             <div
               className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-blue-600 bg-blue-50`}
             >
-              {/* {paymentState.status === 'pending' && <Clock className="w-4 h-4 mr-1" />} */}
-              {/* {paymentState.status === 'processing' && ( */}
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                 className="w-4 h-4 mr-1 border-2 border-current border-t-transparent rounded-full"
               />
-              {/* // )} */}
-              {/* {paymentState.status === "Completed" && (
-                <CheckCircle className="w-4 h-4 mr-1" />
-              )} */}
-              {/* {paymentState.status.charAt(0).toUpperCase() +
-                paymentState.status.slice(1)} */}
             </div>
           </div>
 
           {/* Payment Method Info */}
           <div className="bg-gray-50 rounded-lg p-4 mb-4">
-            {/* <div className="flex items-center justify-between">
-              <span className="text-gray-600">Payment Method</span>
-              <span className="font-medium capitalize text-gray-800">
-                {paymentState.method === 'online' ? 'Online Payment' : paymentState.method}
-              </span>
-            </div> */}
             <div className="flex items-center justify-between mt-2">
               <span className="text-gray-600">Time Elapsed</span>
               <span className="font-mono text-gray-800">
@@ -226,7 +313,7 @@ const DriverPaymentPage: React.FC = () => {
                 className="inline-flex items-center text-blue-600 font-medium"
               >
                 <Clock className="w-5 h-5 mr-2" />
-                Waiting for customer to complete payment...
+                {isUpdatingPayment ? "Updating payment..." : "Waiting for customer to complete payment..."}
               </motion.div>
             </div>
           )}
@@ -251,34 +338,6 @@ const DriverPaymentPage: React.FC = () => {
             </button>
           </div>
         </motion.div>
-
-        {/* Demo Controls (Remove in production) */}
-        {/* <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800 font-medium mb-2">Demo Controls:</p>
-          <div className="flex gap-2 mb-2">
-            <button
-              onClick={() => setPaymentState(prev => ({ ...prev, method: 'cash', status: 'pending' }))}
-              className="px-3 py-1 text-xs bg-green-100 text-green-800 rounded"
-            >
-              Cash
-            </button>
-            <button
-              onClick={() => setPaymentState(prev => ({ ...prev, method: 'wallet', status: 'processing' }))}
-              className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded"
-            >
-              Wallet
-            </button>
-            <button
-              onClick={() => setPaymentState(prev => ({ ...prev, method: 'online', status: 'processing' }))}
-              className="px-3 py-1 text-xs bg-purple-100 text-purple-800 rounded"
-            >
-              Online
-            </button>
-          </div>
-          <p className="text-xs text-yellow-700">
-            {rideData ? 'Using real Redux data' : 'Using dummy data (Redux not connected)'}
-          </p>
-        </div> */}
       </div>
     </div>
   );

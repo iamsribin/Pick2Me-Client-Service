@@ -10,6 +10,7 @@ import {
   Bell,
   Navigation,
   AlertCircle,
+  TrendingUp,
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -26,15 +27,14 @@ const DriverNavbar = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isPulsing, setIsPulsing] = useState(true);
   const isMobileView = useIsMobile();
-const navigate = useNavigate();
+  const navigate = useNavigate();
   const notifications = useSelector(
     (state: RootState) => state.notification.items
   );
-    const rideData = useSelector(
+  const rideData = useSelector(
     (state: RootState) => state.RideData.rideDetails
   );
   const unreadCount = notifications.filter((n) => !n.read).length;
-
 
   const isPaymentPending =
     rideData.paymentStatus === "Pending" || rideData.paymentStatus === "Failed";
@@ -56,8 +56,7 @@ const navigate = useNavigate();
   };
 
   const handleRideMapNavigation = () => {
-       navigate(`/driver/ride-tracking/${rideData.rideId}`);
-
+    navigate(`/driver/ride-tracking/${rideData.rideId}`);
   };
 
   const handlePaymentNavigation = () => {
@@ -172,6 +171,15 @@ const navigate = useNavigate();
               >
                 <User className="mr-0 sm:mr-3 h-5 w-5" />
                 <span className="hidden sm:inline">Profile</span>
+              </NavLink>
+            </NavigationMenuItem>
+            <NavigationMenuItem className="w-full">
+              <NavLink
+                to="/driver/activity"
+                className={({ isActive }) => linkStyles(isActive)}
+              >
+                <TrendingUp className="mr-0 sm:mr-3 h-5 w-5" />
+                <span className="hidden sm:inline">Activity</span>
               </NavLink>
             </NavigationMenuItem>
             <NavigationMenuItem className="w-full">

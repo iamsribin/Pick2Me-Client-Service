@@ -26,6 +26,7 @@ const DriverSignupPage = lazy(() => import("../pages/auth/DriverSignupPage"));
 const ResubmissionPage = lazy(() => import("../pages/auth/ResubmissionPage"));
 const NotFound = lazy(() => import("@/shared/components/NotFound"));
 const Dashboard = lazy(() => import("../pages/DriverDashboard"));
+const ActivityPage = lazy(() => import("../pages/ActivityPage"));
 const DriverProfile = lazy(() => import("../pages/DriverProfile"));
 const DriverDocuments = lazy(() => import("../pages/DriverDocument"));
 
@@ -62,6 +63,7 @@ function DriverRoutes() {
         const res = await fetchData<ResponseCom["data"]>(
           CommonApiEndPoint.BOOKING_DATA
         );
+console.log("booking data",res);
 
         if (res?.status == 200) {
           const data = res.data;
@@ -88,6 +90,7 @@ function DriverRoutes() {
           <Routes>
             <Route element={<ProtectedRoute allowedRole={"Driver"} />}>
               <Route path={AppRoutes.DASHBOARD} element={<Dashboard />} />
+              <Route path={AppRoutes.ACTIVITY} element={<ActivityPage />} />
               <Route path={AppRoutes.PROFILE} element={<DriverProfile />} />
               <Route path={AppRoutes.DOCUMENTS} element={<DriverDocuments />} />
               <Route path={AppRoutes.WALLET} element={<DriverWallet />} />

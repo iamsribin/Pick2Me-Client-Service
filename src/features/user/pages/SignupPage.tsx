@@ -82,18 +82,19 @@ const Signup = () => {
     }
 
     try {
-     const fd = new FormData();
-    fd.append("name", formik.values.name);
-    fd.append("email", formik.values.email);
-    fd.append("mobile", formik.values.mobile);
-    fd.append("referred_code", formik.values.referred_code ?? "");
-    fd.append("otp",otp)
-    if (formik.values.userImage) fd.append("userImage", formik.values.userImage);
+      const fd = new FormData();
+      fd.append("name", formik.values.name);
+      fd.append("email", formik.values.email);
+      fd.append("mobile", formik.values.mobile);
+      fd.append("referred_code", formik.values.referred_code ?? "");
+      fd.append("otp", otp);
+      if (formik.values.userImage)
+        fd.append("userImage", formik.values.userImage);
 
-const res = await postData<ResponseCom["data"]>(
-  UserApiEndpoints.USER_REGISTER,
-  fd
-);
+      const res = await postData<ResponseCom["data"]>(
+        UserApiEndpoints.REGISTER,
+        fd
+      );
       if (res?.status === 201) {
         toast({
           description: "Registration successful login and start ride!",
@@ -109,18 +110,16 @@ const res = await postData<ResponseCom["data"]>(
   };
 
   const resendOtp = async () => {
-
     try {
-      setLoading(true)
+      setLoading(true);
       const res = await postData(UserApiEndpoints.CHECK_USER, formik.values);
-      if (res?.status == 201)
-        setCounter(40);
-        setOtp("");
-        toast({ description: "OTP resent successfully", variant: "success" });
+      if (res?.status == 201) setCounter(40);
+      setOtp("");
+      toast({ description: "OTP resent successfully", variant: "success" });
     } catch (error) {
       handleCustomError(error);
-    }finally{
-setLoading(false)
+    } finally {
+      setLoading(false);
     }
   };
 
